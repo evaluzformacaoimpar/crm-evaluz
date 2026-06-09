@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Eva Luz CRM — Login</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <script src="https://unpkg.com/@supabase/supabase-js@2.39.3/dist/umd/supabase.js"></script>
+  <script src="js/config.js"></script>
+</head>
+<body>
+  <div class="login-page">
+    <div class="login-card">
+      <div class="login-logo">
+        <div class="brand-name">Eva <span>Luz</span></div>
+        <div class="brand-tagline">Integridade que Converte e Constrói Legado</div>
+      </div>
+      <p class="login-title">Acesse o CRM Formação IMPAR</p>
+      <form id="login-form">
+        <div class="form-group">
+          <label class="form-label">Email <span class="required">*</span></label>
+          <input type="email" id="email" class="form-control" placeholder="seu@email.com" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Senha <span class="required">*</span></label>
+          <input type="password" id="password" class="form-control" placeholder="••••••••" required>
+        </div>
+        <button type="submit" class="btn btn-primary btn-lg" style="width:100%; justify-content:center;" id="btn-login">
+          Entrar
+        </button>
+        <div style="text-align:center; margin-top:14px;">
+          <button type="button" class="btn btn-ghost btn-sm" id="btn-forgot">Esqueci minha senha</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+
+  <script src="js/utils.js"></script>
+  <script>
+    (async () => {
+      if (!supabase) return;
+      const res = await supabase.auth.getSession();
+      const session = res?.data?.session || null;
+      if (session) window.location.href = 'dashboard.html';
+    })();
+
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn   = document.getElementById('btn-login');
+      const email = document.getElementById('email').value.trim();
+      const pass  = document.getElementById('password').value;
+
+      btn.textContent = 'Entrando...';
+      btn.disabled = true;
+
+      if (!supabase || !supabase.auth) {
+        showToast('Erro: sistema não inicializou. Recarregue com Ctrl+Shift+R.', 'error');
+        btn.textContent = 'Entrar';
+        btn.disabled = false;
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass });
+
+        if (error) {
+          const msgs = {
+            'Invalid login credentials': 'Email ou senha incorretos.',
+            'Email not confirmed':        'Confirme seu email antes de entrar. Verifique sua caixa de entrada.',
+            'Too many requests':          'Muitas tentativas. Aguarde alguns minutos e tente novamente.',
+          };
+          showToast(msgs[error.message] || 'Erro ao entrar: ' + error.message, 'error');
+          btn.textContent = 'Entrar';
+          btn.disabled = false;
+          return;
+        }
+
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', data.user.id)
+          .single();
+
+        if (profile) localStorage.setItem('crm_user', JSON.stringify(profile));
+        window.location.href = 'dashboard.html';
+
+      } catch (err) {
+        showToast('Erro de conexão. Verifique sua internet e tente novamente.', 'error');
+        btn.textContent = 'Entrar';
+        btn.disabled = false;
+      }
+    });
+
+    document.getElementById('btn-forgot').addEventListener('click', async () => {
+      const email = document.getElementById('email').value.trim();
+      if (!email) { showToast('Digite seu email primeiro', 'warning'); return; }
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin + '/index.html'
+      });
+      if (error) {
+        showToast('Erro ao enviar email de recuperação', 'error');
+      } else {
+        showToast('Email de recuperação enviado. Verifique sua caixa de entrada.', 'success');
+      }
+    });
+  </script>
+</body>
+</html>

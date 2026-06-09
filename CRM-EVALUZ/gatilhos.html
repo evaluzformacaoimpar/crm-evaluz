@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Eva Luz CRM — Gatilhos</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <script src="https://unpkg.com/@supabase/supabase-js@2.39.3/dist/umd/supabase.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/nav.js"></script>
+</head>
+<body>
+  <div class="app-layout">
+    <aside id="sidebar" class="sidebar"></aside>
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+    <main class="main-content">
+      <header class="page-header">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <button class="hamburger" id="hamburger">☰</button>
+          <h1 class="page-title">Gatilhos <span>/ Formação IMPAR</span></h1>
+        </div>
+        <div class="search-bar">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="busca-gatilho" class="form-control" placeholder="Buscar gatilho...">
+        </div>
+      </header>
+
+      <div class="page-body">
+
+        <div class="card" style="margin-bottom:16px;background:var(--primary);color:white;border:none;">
+          <p style="font-size:0.9rem;line-height:1.7;">
+            Gatilho não é manipulação. É a linguagem que o cérebro do cliente já usa para tomar decisões.
+            Cada gatilho aqui tem raiz na neurociência e deve ser usado com uma condição: ser verdadeiro.
+            Escassez falsa destrói confiança. Urgência inventada afasta. Estes 12 gatilhos só funcionam de verdade quando são reais.
+            Use com integridade, e sobre isso.
+          </p>
+        </div>
+
+        <div id="lista-gatilhos"></div>
+
+      </div>
+    </main>
+  </div>
+  <div id="toast-container"></div>
+
+  <script>
+    const GATILHOS = [
+      {
+        nome: 'Autoridade',
+        icone: '🏆',
+        categoria: 'Credibilidade',
+        o_que_e: 'O cérebro humano confia em quem demonstra competência comprovada. Antes de ouvir qualquer argumento, o cliente avalia se você merece ser ouvido. Autoridade não se declara. Se prova pelo histórico.',
+        quando_usar: 'Na abertura de qualquer abordagem. Antes de apresentar o produto. Sempre que o cliente questionar sua credibilidade.',
+        como_aplicar: 'Mencione resultados já entregues a pessoas do mesmo segmento do cliente. Jamais diga que você é ótimo. Mostre quem já foi beneficiado pelo que você oferece.',
+        frase_modelo: 'Acompanho o segmento de varejo há 8 anos e já levei essa solução a mais de 30 lojistas como você. O que mais aparece nesse mercado é exatamente o que vou apresentar agora.',
+        alerta: 'Nunca exalte a si mesmo. A autoridade que você declara pesa zero. A que o cliente percebe pelo seu histórico pesa tudo.'
+      },
+      {
+        nome: 'Prova Social',
+        icone: '👥',
+        categoria: 'Credibilidade',
+        o_que_e: 'O cérebro usa o comportamento dos outros como atalho para decidir. Se pessoas parecidas com o cliente já compraram e aprovaram, o risco percebido cai drasticamente. É o instinto de pertencimento aplicado à decisão de compra.',
+        quando_usar: 'Quando o cliente hesita ou pede para pensar. Quando questiona se o produto funciona. Quando compara com concorrentes.',
+        como_aplicar: 'Cite casos reais de clientes do mesmo segmento, com o mesmo perfil ou a mesma dor. Quanto mais parecido com o cliente atual, mais poderosa é a prova.',
+        frase_modelo: 'A Maria, que tem uma boutique no centro como a sua, estava com o mesmo desafio. Em dois meses depois de implementar isso, as vendas dela cresceram 40%. Posso te mostrar o depoimento dela.',
+        alerta: 'Nunca invente depoimentos. Nunca generalize sem base real. Prova social falsa é descoberta e destrói tudo que você construiu.'
+      },
+      {
+        nome: 'Escassez',
+        icone: '⏳',
+        categoria: 'Decisão',
+        o_que_e: 'O que é raro é percebido como mais valioso. Quando o cliente sente que pode perder o acesso a algo, o cérebro acelera a decisão. A escassez ativa o instinto de não perder, que é mais poderoso do que o desejo de ganhar.',
+        quando_usar: 'Quando há limite real de vagas, estoque ou condição. Nunca quando o limite for inventado.',
+        como_aplicar: 'Informe o limite de forma natural, sem pressão. Mostre o porquê do limite. Dê ao cliente a informação, não a pressão.',
+        frase_modelo: 'A turma fecha com 15 pessoas para que eu consiga acompanhar cada aluno individualmente. Neste momento tenho 3 vagas. Não vou abrir mais porque seria trair a metodologia.',
+        alerta: 'Escassez falsa é manipulação. Se você diz que só tem 2 vagas e amanhã anuncia mais 10, você perdeu a confiança para sempre. Use somente quando for verdade verificável.'
+      },
+      {
+        nome: 'Urgência',
+        icone: '🔥',
+        categoria: 'Decisão',
+        o_que_e: 'A urgência conecta a decisão a um prazo real. Diferente da escassez, que é sobre quantidade, a urgência é sobre tempo. O cérebro adiar decisões por padrão. Um prazo concreto interrompe esse ciclo.',
+        quando_usar: 'Quando há um prazo real para condição, preço ou acesso. Quando o custo de adiar é mensurável para o cliente.',
+        como_aplicar: 'Mostre o custo real de esperar. Quantifique o que o cliente perde a cada mês sem a solução. Nunca invente um prazo.',
+        frase_modelo: 'O valor de R$1.400 é o de lançamento e vale até o dia 20. Depois sobe para R$1.700. Mas mais do que isso: cada mês sem organizar seu processo de vendas é mais receita sendo deixada na mesa.',
+        alerta: 'Urgência inventada é detectada imediatamente por qualquer cliente atento. Se o prazo não for real, não use. O custo de perder credibilidade é infinitamente maior que o de perder uma venda.'
+      },
+      {
+        nome: 'Reciprocidade',
+        icone: '🤝',
+        categoria: 'Relacionamento',
+        o_que_e: 'Quando você entrega valor genuíno antes de pedir algo em troca, o cérebro do cliente cria um compromisso interno de retribuição. É um dos instintos mais primitivos e poderosos da natureza humana.',
+        quando_usar: 'Antes de qualquer apresentação formal. No início do relacionamento com um prospect. Quando o cliente ainda não te conhece.',
+        como_aplicar: 'Entregue algo útil, gratuito e sem condição: uma análise, uma informação, um conteúdo relevante para o segmento dele. Não peça nada em troca. O gatilho se ativa sozinho.',
+        frase_modelo: 'Antes de qualquer conversa sobre meu produto, preparei um levantamento rápido sobre os erros mais comuns de precificação no seu segmento. Quero que você tenha isso independentemente de qualquer decisão.',
+        alerta: 'Reciprocidade que vem com cobrança imediata não é reciprocidade, é troca disfarçada. O cliente percebe. Entregue sem condição ou não entregue.'
+      },
+      {
+        nome: 'Pertencimento',
+        icone: '🫂',
+        categoria: 'Relacionamento',
+        o_que_e: 'Humanos são seres tribais. Fazer parte de um grupo que compartilha valores e resultados é uma necessidade neurológica. Quando o cliente sente que vai pertencer a algo maior do que uma compra, a decisão muda de nível.',
+        quando_usar: 'Quando apresentar a metodologia ou comunidade. Para clientes que valorizam conexão e rede. Para perfis comunicadores e consensuais.',
+        como_aplicar: 'Mostre quem faz parte do grupo, os valores compartilhados, os resultados coletivos. Faça o cliente imaginar como seria estar naquele ambiente.',
+        frase_modelo: 'Na Formação IMPAR você vai estar ao lado de vendedores e empreendedores que levam ética e resultado a sério. Não é só aula: é uma mudança de mentalidade compartilhada com pessoas que pensam igual a você.',
+        alerta: 'Pertencimento falso é um dos gatilhos mais perigosos quando usado de forma desonesta. A comunidade precisa ser real e entregar o que promete.'
+      },
+      {
+        nome: 'História',
+        icone: '📖',
+        categoria: 'Conexão',
+        o_que_e: 'O cérebro não processa dados frios com emoção. Mas processa histórias com toda a força do sistema límbico. Uma boa história ativa empatia, baixa resistência e grava a mensagem de forma permanente.',
+        quando_usar: 'Para apresentar sua trajetória e credibilidade. Para mostrar a transformação de outro cliente. Para tornar um conceito abstrato concreto.',
+        como_aplicar: 'Use a estrutura: situação inicial, desafio, virada, resultado. Seja específico. Detalhes concretos tornam a história real e crível.',
+        frase_modelo: 'Uma vendedora me procurou no ano passado. Trabalhava 12 horas por dia, não batia meta e achava que o problema era o mercado. Em 60 dias de mentoria ela descobriu que o problema era uma etapa do processo que ela nunca tinha visto. Hoje ela vende 3 vezes mais em metade do tempo.',
+        alerta: 'Histórias inventadas são perigosas e antiéticas. Use somente histórias reais, suas ou de clientes com autorização. Uma história falsa, quando descoberta, destrói anos de construção de imagem.'
+      },
+      {
+        nome: 'Novidade',
+        icone: '✨',
+        categoria: 'Atenção',
+        o_que_e: 'O cérebro libera dopamina quando encontra algo novo. A novidade captura atenção de forma involuntária. No contexto de vendas, o que é diferente do que o cliente já viu merece ser destacado como tal.',
+        quando_usar: 'Para clientes inovadores e comunicadores. Para diferenciar sua abordagem do que o cliente já conhece. Quando o cliente diz que já tentou outras soluções.',
+        como_aplicar: 'Mostre o que é genuinamente diferente na sua oferta. Não use "novidade" para algo que não é novo. Conecte o diferencial à dor específica do cliente.',
+        frase_modelo: 'O que eu faço é diferente do que você provavelmente já viu no mercado. Não ensino script. Ensino você a encontrar a sua própria voz nas vendas. Isso muda tudo.',
+        alerta: 'Novidade por novidade não vende. A novidade precisa estar conectada a um benefício real para o cliente. "Diferente" sem "melhor para você" é ruído.'
+      },
+      {
+        nome: 'Antecipação',
+        icone: '🎯',
+        categoria: 'Atenção',
+        o_que_e: 'O cérebro se engaja profundamente com o que ainda está por vir. A antecipação cria um estado de atenção elevado e mantém o cliente conectado à conversa antes mesmo de você apresentar o produto.',
+        quando_usar: 'No início de apresentações. Antes de revelar o ponto principal. Para criar expectativa em torno de um lançamento ou nova turma.',
+        como_aplicar: 'Anuncie que algo importante está chegando. Dê pistas sem revelar tudo. Crie curiosidade real sobre o que vem a seguir.',
+        frase_modelo: 'Antes de falar sobre a mentoria em si, quero te mostrar algo que muda completamente a forma como você vai enxergar seu processo de vendas a partir de hoje.',
+        alerta: 'A antecipação que não entrega o prometido gera frustração e quebra de confiança. O que você antecipa precisa ser real e estar à altura da expectativa criada.'
+      },
+      {
+        nome: 'Especificidade',
+        icone: '🔬',
+        categoria: 'Credibilidade',
+        o_que_e: 'Detalhes concretos são percebidos como verdadeiros. Afirmações genéricas ativam ceticismo. Quando você é específico, o cérebro do cliente interpreta isso como prova de domínio e autenticidade.',
+        quando_usar: 'Sempre que apresentar resultados. Quando descrever seu método. Quando o cliente pede para conhecer melhor o produto.',
+        como_aplicar: 'Troque termos genéricos por números, nomes, prazos e situações reais. "Muitos clientes melhoram" vira "Em 60 dias, 80% dos meus alunos relatam aumento de pelo menos 30% nas conversões".',
+        frase_modelo: 'A Formação IMPAR tem 8 encontros ao longo de 2 meses. Turmas de no máximo 15 pessoas. Você vai sair com seu processo de vendas mapeado, suas crenças limitantes identificadas e um plano de ação para os próximos 90 dias.',
+        alerta: 'Especificidade com dados falsos é pior do que generalização. Nunca invente números. Prefira dizer "não tenho esse dado ainda" a inventar.'
+      },
+      {
+        nome: 'Comparação',
+        icone: '⚖️',
+        categoria: 'Decisão',
+        o_que_e: 'O cérebro não avalia o valor de nada de forma absoluta. Sempre compara. Quando você apresenta um contraste inteligente, você define o referencial que o cliente vai usar para julgar sua oferta.',
+        quando_usar: 'Para justificar o investimento. Para rebater a objeção de preço. Para posicionar a solução contra o custo do problema não resolvido.',
+        como_aplicar: 'Compare o investimento com o custo real de não resolver. Compare com quanto o cliente já gastou tentando outras soluções. Compare com o que ele perde por mês sem o resultado.',
+        frase_modelo: 'Você me disse que perde em média 3 vendas por semana por não saber como conduzir a negociação. São 12 vendas por mês. Se cada venda vale R$500, isso é R$6.000 saindo por falta de técnica. A mentoria custa R$1.400.',
+        alerta: 'A comparação precisa usar números reais do cliente, que ele mesmo forneceu. Nunca invente o custo do problema. Pergunte antes, calcule junto.'
+      },
+      {
+        nome: 'Garantia',
+        icone: '🛡️',
+        categoria: 'Segurança',
+        o_que_e: 'O medo de errar é um dos maiores bloqueios de compra. A garantia não é generosidade do vendedor: é o reconhecimento de que o cliente precisa se sentir seguro para agir. Reduz o risco percebido a um nível tolerável.',
+        quando_usar: 'Quando o cliente demonstra medo de não ter resultado. Quando hesita por já ter tentado algo parecido antes. Para perfis planejadores e analíticos.',
+        como_aplicar: 'Seja claro sobre o que você garante e em que condições. Uma garantia específica e verificável vale mais do que uma promessa vaga de satisfação.',
+        frase_modelo: 'Se ao final dos dois meses você aplicar o que ensinamos e não perceber nenhuma evolução no seu processo de vendas, você me conta o que aconteceu e resolvo junto com você. Não abandono ninguém no meio do caminho.',
+        alerta: 'Garantia que você não pode cumprir é armadilha. Garanta apenas o que está dentro do seu controle e compromisso real. Nunca prometa resultado que depende 100% do cliente.'
+      },
+    ];
+
+    async function init() {
+      await checkSession();
+      await injectNav('gatilhos');
+      render(GATILHOS);
+    }
+
+    function render(list) {
+      const el = document.getElementById('lista-gatilhos');
+      if (!list.length) {
+        el.innerHTML = '<div class="empty-state"><p>Nenhum gatilho encontrado</p></div>';
+        return;
+      }
+      el.innerHTML = list.map((g, i) => `
+        <div class="accordion-item" data-nome="${g.nome.toLowerCase()} ${g.categoria.toLowerCase()} ${g.o_que_e.toLowerCase()} ${g.quando_usar.toLowerCase()}">
+          <button class="accordion-header" onclick="toggleAccordion(this)">
+            <span style="display:flex;align-items:center;gap:10px;">
+              <span style="font-size:1.2rem;">${g.icone}</span>
+              <span>
+                <strong>${g.nome}</strong>
+                <span style="font-size:0.75rem;color:var(--text-muted);font-weight:400;margin-left:8px;">${g.categoria}</span>
+              </span>
+            </span>
+            <span class="accordion-chevron">▼</span>
+          </button>
+          <div class="accordion-body">
+            <div style="display:grid;gap:14px;">
+
+              <div>
+                <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:.6px;color:var(--accent);font-weight:700;margin-bottom:5px;">O que é</div>
+                <p style="font-size:0.87rem;line-height:1.65;color:var(--text-body);">${g.o_que_e}</p>
+              </div>
+
+              <div>
+                <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:.6px;color:var(--accent);font-weight:700;margin-bottom:5px;">Quando usar</div>
+                <p style="font-size:0.87rem;line-height:1.65;color:var(--text-body);">${g.quando_usar}</p>
+              </div>
+
+              <div>
+                <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:.6px;color:var(--accent);font-weight:700;margin-bottom:5px;">Como aplicar</div>
+                <p style="font-size:0.87rem;line-height:1.65;color:var(--text-body);">${g.como_aplicar}</p>
+              </div>
+
+              <div style="background:rgba(0,31,63,0.04);border-left:3px solid var(--primary);border-radius:0 8px 8px 0;padding:12px 14px;">
+                <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:.6px;color:var(--primary);font-weight:700;margin-bottom:6px;">Frase-modelo</div>
+                <p style="font-size:0.87rem;line-height:1.65;color:var(--text-body);font-style:italic;">"${g.frase_modelo}"</p>
+              </div>
+
+              <div style="background:rgba(220,53,69,0.06);border-left:3px solid #dc3545;border-radius:0 8px 8px 0;padding:12px 14px;">
+                <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:.6px;color:#dc3545;font-weight:700;margin-bottom:6px;">⚠️ Atenção</div>
+                <p style="font-size:0.85rem;line-height:1.6;color:var(--text-body);">${g.alerta}</p>
+              </div>
+
+            </div>
+          </div>
+        </div>`).join('');
+    }
+
+    function toggleAccordion(btn) {
+      const body  = btn.nextElementSibling;
+      const isOpen = body.classList.contains('open');
+      document.querySelectorAll('.accordion-body').forEach(b => b.classList.remove('open'));
+      document.querySelectorAll('.accordion-header').forEach(b => b.classList.remove('open'));
+      if (!isOpen) { body.classList.add('open'); btn.classList.add('open'); }
+    }
+
+    document.getElementById('busca-gatilho').addEventListener('input', function() {
+      const term = this.value.toLowerCase();
+      const filtered = GATILHOS.filter(g =>
+        g.nome.toLowerCase().includes(term) ||
+        g.categoria.toLowerCase().includes(term) ||
+        g.o_que_e.toLowerCase().includes(term) ||
+        g.quando_usar.toLowerCase().includes(term) ||
+        g.como_aplicar.toLowerCase().includes(term)
+      );
+      render(filtered);
+    });
+
+    init();
+  </script>
+</body>
+</html>

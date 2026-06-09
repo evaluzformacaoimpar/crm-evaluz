@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Eva Luz CRM — Usuários</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <script src="https://unpkg.com/@supabase/supabase-js@2.39.3/dist/umd/supabase.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/nav.js"></script>
+</head>
+<body>
+  <div class="app-layout">
+    <aside id="sidebar" class="sidebar"></aside>
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+    <main class="main-content">
+      <header class="page-header">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <button class="hamburger" id="hamburger">☰</button>
+          <h1 class="page-title">Gestão de <span>Usuários</span></h1>
+        </div>
+        <button class="btn btn-accent" onclick="openModal('modal-invite')">+ Convidar Colaborador</button>
+      </header>
+      <div class="page-body">
+        <div class="card" style="padding:0;overflow:hidden;">
+          <div class="table-responsive">
+            <table class="table">
+              <thead>
+                <tr><th>Nome</th><th>Função</th><th>Membro desde</th><th>Ações</th></tr>
+              </thead>
+              <tbody id="users-body">
+                <tr><td colspan="4" style="text-align:center;color:var(--text-muted);">Carregando...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card" style="margin-top:20px;background:rgba(184,115,51,0.05);border-color:rgba(184,115,51,0.2);">
+          <p style="font-size:0.85rem;color:var(--text-muted);line-height:1.6;">
+            <strong>Como funciona o acesso:</strong> Ao convidar um colaborador, ele receberá um email com link para criar a senha.
+            Colaboradores podem cadastrar e atualizar contatos, registrar histórico e tarefas.
+            Somente administradoras podem excluir contatos e gerenciar usuários.
+          </p>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Modal Convidar -->
+  <div id="modal-invite" class="modal-overlay" style="display:none;" onclick="closeModalOnOverlay(event)">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title">Convidar Colaborador</h3>
+        <button class="btn btn-ghost btn-icon" onclick="closeModal('modal-invite')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Nome Completo <span class="required">*</span></label>
+          <input type="text" id="inv-name" class="form-control" placeholder="Nome do colaborador">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email <span class="required">*</span></label>
+          <input type="email" id="inv-email" class="form-control" placeholder="email@colaborador.com">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Função</label>
+          <select id="inv-role" class="form-select">
+            <option value="colaborador">Colaborador</option>
+            <option value="admin">Administrador</option>
+          </select>
+        </div>
+        <div style="background:rgba(52,152,219,0.06);border:1px solid rgba(52,152,219,0.2);border-radius:8px;padding:12px;font-size:0.83rem;color:var(--text-muted);line-height:1.5;">
+          O colaborador receberá um email com link para criar a senha e acessar o CRM.
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeModal('modal-invite')">Cancelar</button>
+        <button class="btn btn-accent" onclick="convidar()">Enviar Convite</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+
+  <script>
+    let profiles = [];
+
+    async function init() {
+      const result = await requireAdmin();
+      if (!result) return;
+      await injectNav('admin');
+      await loadProfiles();
+    }
+
+    async function loadProfiles() {
+      const { data, error } = await supabase.from('profiles').select('*').order('created_at');
+      if (error) { showToast('Erro ao carregar usuários', 'error'); return; }
+      profiles = data || [];
+      renderProfiles();
+    }
+
+    function renderProfiles() {
+      const tbody = document.getElementById('users-body');
+      const currentUser = getUser();
+      if (!profiles.length) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);">Nenhum usuário encontrado</td></tr>';
+        return;
+      }
+      tbody.innerHTML = profiles.map(p => `
+        <tr>
+          <td style="font-weight:600;">${p.name} ${p.id === currentUser?.id ? '<span class="badge badge-accent" style="font-size:0.68rem;">Você</span>' : ''}</td>
+          <td>
+            <span class="badge ${p.role === 'admin' ? 'badge-primary' : 'badge-gray'}">
+              ${p.role === 'admin' ? '⚙️ Admin' : '👤 Colaborador'}
+            </span>
+          </td>
+          <td style="color:var(--text-muted);font-size:0.82rem;">${formatDate(p.created_at)}</td>
+          <td>
+            ${p.id !== currentUser?.id ? `
+            <div class="table-actions">
+              <button class="btn btn-outline btn-sm" onclick="alterarRole('${p.id}','${p.role}','${p.name}')">
+                ${p.role === 'admin' ? '→ Colaborador' : '→ Admin'}
+              </button>
+            </div>` : ''}
+          </td>
+        </tr>`).join('');
+    }
+
+    async function convidar() {
+      const name  = document.getElementById('inv-name').value.trim();
+      const email = document.getElementById('inv-email').value.trim();
+      const role  = document.getElementById('inv-role').value;
+      if (!name || !email) { showToast('Preencha nome e email', 'error'); return; }
+
+      const btn = document.querySelector('#modal-invite .btn-accent');
+      btn.textContent = 'Enviando...';
+      btn.disabled = true;
+
+      const { data, error } = await supabase.auth.admin.inviteUserByEmail(email, {
+        data: { name, role }
+      });
+
+      if (error) {
+        showToast('Erro ao convidar: ' + error.message, 'error');
+        btn.textContent = 'Enviar Convite';
+        btn.disabled = false;
+        return;
+      }
+
+      if (data?.user) {
+        await supabase.from('profiles').insert({ id: data.user.id, name, role });
+      }
+
+      showToast(`Convite enviado para ${email}!`, 'success');
+      closeModal('modal-invite');
+      document.getElementById('inv-name').value  = '';
+      document.getElementById('inv-email').value = '';
+      btn.textContent = 'Enviar Convite';
+      btn.disabled = false;
+      await loadProfiles();
+    }
+
+    async function alterarRole(id, currentRole, name) {
+      const newRole = currentRole === 'admin' ? 'colaborador' : 'admin';
+      const confirm = window.confirm(`Alterar ${name} para ${newRole === 'admin' ? 'Administrador' : 'Colaborador'}?`);
+      if (!confirm) return;
+      const { error } = await supabase.from('profiles').update({ role: newRole }).eq('id', id);
+      if (error) { showToast('Erro ao alterar função', 'error'); return; }
+      showToast(`Função alterada para ${newRole}`, 'success');
+      await loadProfiles();
+    }
+
+    init();
+  </script>
+</body>
+</html>

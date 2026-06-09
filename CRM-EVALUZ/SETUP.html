@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Eva Luz CRM — Configuração</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    body { background: var(--bg); }
+    .setup-container { max-width: 760px; margin: 0 auto; padding: 40px 20px; }
+    .setup-header { text-align:center; margin-bottom:40px; }
+    .setup-step { background:white; border:1.5px solid var(--border); border-radius:var(--radius-lg); padding:28px; margin-bottom:20px; }
+    .step-number { width:36px; height:36px; background:var(--primary); color:white; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:1rem; margin-bottom:14px; }
+    .step-title { font-size:1.05rem; font-weight:700; color:var(--primary); margin-bottom:10px; }
+    .step-body { font-size:0.88rem; line-height:1.7; color:var(--text-dark); }
+    .step-body ol { padding-left:20px; }
+    .step-body li { margin-bottom:8px; }
+    .code-block { background:var(--primary); color:#e8f4fd; border-radius:var(--radius); padding:14px 16px; font-family:monospace; font-size:0.82rem; margin:12px 0; white-space:pre-wrap; word-break:break-all; }
+    .highlight { background:rgba(184,115,51,0.1); border:1px solid rgba(184,115,51,0.3); border-radius:6px; padding:10px 14px; margin:10px 0; font-size:0.85rem; }
+    .badge-step { display:inline-flex; align-items:center; padding:3px 10px; border-radius:20px; font-size:0.72rem; font-weight:700; background:rgba(46,204,113,0.12); color:#1e8449; }
+    .optional-badge { background:rgba(107,122,141,0.1); color:var(--text-muted); }
+  </style>
+</head>
+<body>
+  <div class="setup-container">
+    <div class="setup-header">
+      <div style="font-size:1.8rem;font-weight:700;color:var(--primary);margin-bottom:4px;">Eva <span style="color:var(--accent);">Luz</span></div>
+      <div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:16px;font-style:italic;">Integridade que Converte e Constrói Legado</div>
+      <h1 style="font-size:1.4rem;font-weight:700;color:var(--primary);margin-bottom:8px;">Configuração do CRM</h1>
+      <p style="color:var(--text-muted);font-size:0.9rem;">Siga os passos abaixo para ativar o seu CRM. Tempo estimado: 20 minutos.</p>
+    </div>
+
+    <!-- Passo 1 -->
+    <div class="setup-step">
+      <div class="step-number">1</div>
+      <div class="step-title">Criar conta no Supabase (banco de dados gratuito)</div>
+      <div class="step-body">
+        <ol>
+          <li>Acesse <strong>supabase.com</strong> e clique em <strong>"Start your project"</strong></li>
+          <li>Clique em <strong>"Sign up with GitHub"</strong> ou crie uma conta com o email <strong>evamentorfuturo@gmail.com</strong></li>
+          <li>Confirme o email se necessário</li>
+          <li>Após o login, clique em <strong>"New Project"</strong></li>
+          <li>Preencha: <strong>Organization</strong> = Eva Luz Vendas, <strong>Project Name</strong> = crm-evaluz</li>
+          <li>Escolha uma senha forte para o banco (anote em local seguro)</li>
+          <li>Região: <strong>South America (São Paulo)</strong></li>
+          <li>Clique em <strong>"Create new project"</strong> e aguarde 2 minutos</li>
+        </ol>
+        <div class="highlight">Guarde a <strong>senha do banco</strong> que você definiu. Você vai precisar dela se precisar acessar o banco diretamente.</div>
+      </div>
+    </div>
+
+    <!-- Passo 2 -->
+    <div class="setup-step">
+      <div class="step-number">2</div>
+      <div class="step-title">Copiar as credenciais do Supabase</div>
+      <div class="step-body">
+        <ol>
+          <li>No painel do Supabase, clique em <strong>Settings</strong> (ícone de engrenagem) no menu lateral</li>
+          <li>Clique em <strong>API</strong></li>
+          <li>Copie o valor de <strong>Project URL</strong> (começa com https://...supabase.co)</li>
+          <li>Copie o valor de <strong>anon (public)</strong> na seção "Project API keys"</li>
+        </ol>
+        <div class="highlight">Você vai usar esses dois valores no Passo 5.</div>
+      </div>
+    </div>
+
+    <!-- Passo 3 -->
+    <div class="setup-step">
+      <div class="step-number">3</div>
+      <div class="step-title">Executar o schema (criar as tabelas do banco)</div>
+      <div class="step-body">
+        <ol>
+          <li>No Supabase, clique em <strong>SQL Editor</strong> no menu lateral (ícone de banco de dados)</li>
+          <li>Clique em <strong>"New query"</strong></li>
+          <li>Abra o arquivo <strong>schema.sql</strong> que está na pasta do CRM com o Bloco de Notas</li>
+          <li>Selecione todo o conteúdo (Ctrl+A) e copie (Ctrl+C)</li>
+          <li>Cole no SQL Editor do Supabase</li>
+          <li>Clique em <strong>Run</strong> (ou pressione Ctrl+Enter)</li>
+          <li>Deve aparecer a mensagem <strong>"Success"</strong></li>
+        </ol>
+        <div class="highlight">Se aparecer algum erro, verifique se copiou o conteúdo completo do arquivo schema.sql.</div>
+      </div>
+    </div>
+
+    <!-- Passo 4 -->
+    <div class="setup-step">
+      <div class="step-number">4</div>
+      <div class="step-title">Criar sua conta de administradora</div>
+      <div class="step-body">
+        <ol>
+          <li>No Supabase, clique em <strong>Authentication</strong> no menu lateral</li>
+          <li>Clique em <strong>Users</strong></li>
+          <li>Clique em <strong>"Invite user"</strong></li>
+          <li>Digite seu email: <strong>evamentorfuturo@gmail.com</strong></li>
+          <li>Clique em <strong>"Invite"</strong></li>
+          <li>Verifique seu Gmail: chegará um email de convite. Clique no link para criar sua senha</li>
+          <li>Anote o <strong>User ID</strong> que aparece na lista de usuários (uma sequência de letras e números, tipo: abc123-def-...)</li>
+        </ol>
+      </div>
+    </div>
+
+    <!-- Passo 5 -->
+    <div class="setup-step">
+      <div class="step-number">5</div>
+      <div class="step-title">Inserir seu perfil de administradora no banco</div>
+      <div class="step-body">
+        <ol>
+          <li>No Supabase, clique em <strong>Table Editor</strong></li>
+          <li>Clique na tabela <strong>profiles</strong></li>
+          <li>Clique em <strong>"Insert row"</strong></li>
+          <li>Preencha:
+            <ul style="margin-top:8px;padding-left:16px;">
+              <li><strong>id</strong> = cole o User ID copiado no passo anterior</li>
+              <li><strong>name</strong> = Eva Luz</li>
+              <li><strong>role</strong> = admin</li>
+            </ul>
+          </li>
+          <li>Clique em <strong>Save</strong></li>
+        </ol>
+      </div>
+    </div>
+
+    <!-- Passo 6 -->
+    <div class="setup-step">
+      <div class="step-number">6</div>
+      <div class="step-title">Preencher as credenciais no arquivo config.js</div>
+      <div class="step-body">
+        <ol>
+          <li>Abra a pasta <strong>CRM-EVALUZ</strong></li>
+          <li>Abra a pasta <strong>js</strong></li>
+          <li>Clique com o botão direito em <strong>config.js</strong> e escolha "Abrir com Bloco de Notas"</li>
+          <li>Substitua <code style="background:var(--bg);padding:2px 6px;border-radius:4px;">COLE_AQUI_SUA_URL_DO_SUPABASE</code> pela URL copiada no Passo 2</li>
+          <li>Substitua <code style="background:var(--bg);padding:2px 6px;border-radius:4px;">COLE_AQUI_SUA_ANON_KEY_DO_SUPABASE</code> pela anon key copiada no Passo 2</li>
+          <li>Salve o arquivo (Ctrl+S)</li>
+        </ol>
+        <div class="code-block">const SUPABASE_URL      = 'https://SEU-PROJETO.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...';</div>
+      </div>
+    </div>
+
+    <!-- Passo 7 -->
+    <div class="setup-step">
+      <div class="step-number">7</div>
+      <div class="step-title">Criar conta no Netlify (hospedagem gratuita)</div>
+      <div class="step-body">
+        <ol>
+          <li>Acesse <strong>netlify.com</strong></li>
+          <li>Clique em <strong>"Sign up"</strong> e escolha <strong>"Sign up with email"</strong></li>
+          <li>Use o email <strong>evamentorfuturo@gmail.com</strong></li>
+          <li>Confirme o email</li>
+        </ol>
+      </div>
+    </div>
+
+    <!-- Passo 8 -->
+    <div class="setup-step">
+      <div class="step-number">8</div>
+      <div class="step-title">Publicar o CRM no Netlify (arrastar a pasta)</div>
+      <div class="step-body">
+        <ol>
+          <li>No Netlify, na tela inicial, você verá uma área que diz <strong>"drag and drop your site folder here"</strong></li>
+          <li>Abra o Windows Explorer e navegue até <strong>C:\Users\Eva\</strong></li>
+          <li>Localize a pasta <strong>CRM-EVALUZ</strong></li>
+          <li>Arraste a pasta inteira para a área indicada no Netlify</li>
+          <li>Aguarde o upload (pode levar 1-2 minutos)</li>
+          <li>O Netlify vai gerar um endereço como <strong>https://nome-aleatorio.netlify.app</strong></li>
+          <li>Acesse esse endereço no celular e no computador. O CRM vai funcionar nos dois!</li>
+        </ol>
+        <div class="highlight">Anote o endereço gerado. Você pode personalizar para algo como <strong>crm-evaluz.netlify.app</strong> nas configurações do site.</div>
+      </div>
+    </div>
+
+    <!-- Passo 9 (opcional) -->
+    <div class="setup-step">
+      <div class="step-number" style="background:var(--text-muted);">9</div>
+      <div class="step-title">
+        Configurar lembretes por email <span class="badge-step optional-badge" style="margin-left:8px;">Opcional</span>
+      </div>
+      <div class="step-body">
+        <ol>
+          <li>Acesse <strong>emailjs.com</strong> e crie uma conta gratuita</li>
+          <li>Em <strong>Email Services</strong>, conecte sua conta Gmail</li>
+          <li>Em <strong>Email Templates</strong>, crie um template com as variáveis:<br>
+            <code style="background:var(--bg);padding:2px 6px;border-radius:4px;">{{to_name}}</code>,
+            <code style="background:var(--bg);padding:2px 6px;border-radius:4px;">{{contact_name}}</code>,
+            <code style="background:var(--bg);padding:2px 6px;border-radius:4px;">{{task_title}}</code>,
+            <code style="background:var(--bg);padding:2px 6px;border-radius:4px;">{{due_date}}</code>
+          </li>
+          <li>Copie o <strong>Service ID</strong>, <strong>Template ID</strong> e <strong>Public Key</strong></li>
+          <li>Cole cada valor no arquivo <strong>js/config.js</strong> nos campos correspondentes</li>
+          <li>Refaça o upload da pasta no Netlify (arraste novamente)</li>
+        </ol>
+      </div>
+    </div>
+
+    <!-- Passo 10 -->
+    <div class="setup-step" style="background:var(--primary);border-color:var(--primary);">
+      <div class="step-number" style="background:var(--accent);">✓</div>
+      <div class="step-title" style="color:white;">Pronto! Seu CRM está no ar.</div>
+      <div class="step-body" style="color:rgba(255,255,255,0.85);">
+        <p style="margin-bottom:12px;">Acesse o endereço gerado pelo Netlify no seu computador e no celular.</p>
+        <p style="margin-bottom:12px;">Login com: <strong style="color:var(--accent);">evamentorfuturo@gmail.com</strong> e a senha que você criou.</p>
+        <p>Para convidar colaboradores: acesse o menu <strong style="color:var(--accent);">Usuários</strong> dentro do CRM.</p>
+      </div>
+    </div>
+
+    <div style="text-align:center;margin-top:32px;color:var(--text-muted);font-size:0.8rem;">
+      CRM desenvolvido exclusivamente para Eva Luz Vendas. Formação IMPAR.
+    </div>
+  </div>
+</body>
+</html>

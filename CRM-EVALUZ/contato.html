@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Eva Luz CRM — Contato</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <script src="https://unpkg.com/@supabase/supabase-js@2.39.3/dist/umd/supabase.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/nav.js"></script>
+</head>
+<body>
+  <div class="app-layout">
+    <aside id="sidebar" class="sidebar"></aside>
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+    <main class="main-content">
+      <header class="page-header">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <button class="hamburger" id="hamburger">☰</button>
+          <a href="contatos.html" class="btn btn-ghost btn-sm">← Contatos</a>
+        </div>
+        <div id="header-actions"></div>
+      </header>
+      <div class="page-body">
+        <div id="contact-header-area"></div>
+        <div class="tabs" id="tabs-nav">
+          <button class="tab-btn active" onclick="showTab('perfil',this)">👤 Perfil</button>
+          <button class="tab-btn" onclick="showTab('historico',this)">📋 Histórico</button>
+          <button class="tab-btn" onclick="showTab('tarefas',this)">✅ Tarefas</button>
+        </div>
+        <div id="tab-perfil"   class="tab-panel active"></div>
+        <div id="tab-historico" class="tab-panel"></div>
+        <div id="tab-tarefas"  class="tab-panel"></div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Modal Editar Contato -->
+  <div id="modal-edit" class="modal-overlay" style="display:none;" onclick="closeModalOnOverlay(event)">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <h3 class="modal-title">Editar Contato</h3>
+        <button class="btn btn-ghost btn-icon" onclick="closeModal('modal-edit')">✕</button>
+      </div>
+      <div class="modal-body" id="modal-edit-body"></div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeModal('modal-edit')">Cancelar</button>
+        <button class="btn btn-accent" onclick="salvarEdicao()">Salvar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Registrar Histórico -->
+  <div id="modal-hist" class="modal-overlay" style="display:none;" onclick="closeModalOnOverlay(event)">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title">Registrar Contato</h3>
+        <button class="btn btn-ghost btn-icon" onclick="closeModal('modal-hist')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Tipo de Interação</label>
+          <select id="hist-type" class="form-select">
+            <option value="whatsapp">WhatsApp</option>
+            <option value="ligacao">Ligação</option>
+            <option value="email">Email</option>
+            <option value="reuniao">Reunião</option>
+            <option value="outro">Outro</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Notas / O que foi tratado <span class="required">*</span></label>
+          <textarea id="hist-notes" class="form-textarea" rows="4" placeholder="Descreva o que foi discutido..."></textarea>
+        </div>
+        <label style="display:flex;align-items:center;gap:8px;font-size:0.85rem;cursor:pointer;">
+          <input type="checkbox" id="hist-metric" style="width:16px;height:16px;">
+          Registrar como "contato feito" nas métricas
+        </label>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeModal('modal-hist')">Cancelar</button>
+        <button class="btn btn-accent" onclick="salvarHistorico()">Registrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Nova Tarefa -->
+  <div id="modal-task" class="modal-overlay" style="display:none;" onclick="closeModalOnOverlay(event)">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title">Nova Tarefa</h3>
+        <button class="btn btn-ghost btn-icon" onclick="closeModal('modal-task')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Título <span class="required">*</span></label>
+          <input type="text" id="task-title" class="form-control" placeholder="Ex: Follow-up — dia 3">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Data <span class="required">*</span></label>
+            <input type="date" id="task-date" class="form-control">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Horário</label>
+            <input type="time" id="task-time" class="form-control">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Descrição</label>
+          <textarea id="task-desc" class="form-textarea" rows="2" placeholder="Detalhes da tarefa..."></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Mensagem WhatsApp (opcional)</label>
+          <textarea id="task-wa" class="form-textarea" rows="3" placeholder="Mensagem que será enviada ao clicar no botão WhatsApp..."></textarea>
+        </div>
+        <label style="display:flex;align-items:center;gap:8px;font-size:0.85rem;cursor:pointer;margin-bottom:12px;">
+          <input type="checkbox" id="task-email-reminder" style="width:16px;height:16px;">
+          Receber lembrete por email no dia
+        </label>
+        <div style="background:rgba(184,115,51,0.06);border:1px solid rgba(184,115,51,0.2);border-radius:8px;padding:12px;">
+          <label style="display:flex;align-items:center;gap:8px;font-size:0.85rem;cursor:pointer;">
+            <input type="checkbox" id="task-cadencia" style="width:16px;height:16px;">
+            <span><strong>Criar cadência completa IMPAR</strong> (dias 1, 3, 6, 10, 15 e 30 a partir da data escolhida)</span>
+          </label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeModal('modal-task')">Cancelar</button>
+        <button class="btn btn-accent" onclick="salvarTarefa()">Criar Tarefa</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+
+  <script>
+    let contact = null;
+    let contactHistory = [];
+    let contactTasks   = [];
+    const user = JSON.parse(localStorage.getItem('crm_user') || '{}');
+
+    async function init() {
+      await checkSession();
+      await injectNav('contatos');
+      const id = new URLSearchParams(location.search).get('id');
+      if (!id) { window.location.href = 'contatos.html'; return; }
+      await loadContact(id);
+    }
+
+    async function loadContact(id) {
+      const [{ data: c }, { data: hist }, { data: tasks }] = await Promise.all([
+        supabase.from('contacts').select('*').eq('id', id).single(),
+        supabase.from('contact_history').select('*, profiles(name)').eq('contact_id', id).order('created_at', { ascending: false }),
+        supabase.from('tasks').select('*').eq('contact_id', id).order('due_date', { ascending: true }),
+      ]);
+      if (!c) { showToast('Contato não encontrado', 'error'); return; }
+      contact = c;
+      contactHistory = hist || [];
+      contactTasks   = tasks || [];
+      renderHeader();
+      renderPerfil();
+      renderHistorico();
+      renderTarefas();
+    }
+
+    function renderHeader() {
+      document.title = `CRM — ${contact.name}`;
+      document.getElementById('header-actions').innerHTML = `
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          ${contact.phone ? `<button class="btn btn-whatsapp btn-sm" onclick="openWhatsApp('${contact.phone}','')">💬 WhatsApp</button>` : ''}
+          <button class="btn btn-outline btn-sm" onclick="abrirEdicao()">✏️ Editar</button>
+        </div>`;
+
+      document.getElementById('contact-header-area').innerHTML = `
+        <div class="contact-header">
+          <div class="contact-avatar">${getInitials(contact.name)}</div>
+          <div class="contact-info">
+            <div class="contact-name">${contact.name}</div>
+            <div class="contact-meta">
+              ${contact.phone ? `<span>📱 ${formatPhone(contact.phone)}</span>` : ''}
+              ${contact.email ? `<span>✉️ ${contact.email}</span>` : ''}
+              ${contact.instagram ? `<span>📸 ${contact.instagram}</span>` : ''}
+            </div>
+            <div class="profile-tags" style="margin-top:10px;">
+              ${funnelBadge(contact.funnel_stage)}
+              ${contact.disc_profile ? `<span class="profile-tag ${DISC_DATA[contact.disc_profile]?.tag}">${DISC_DATA[contact.disc_profile]?.icon} ${getDiscLabel(contact.disc_profile)}</span>` : ''}
+              ${contact.sensory_system ? `<span class="profile-tag ${SENSORY_DATA[contact.sensory_system]?.tag}">${SENSORY_DATA[contact.sensory_system]?.icon} ${getSensoryLabel(contact.sensory_system)}</span>` : ''}
+              ${contact.source ? `<span class="badge badge-gray">${getSourceLabel(contact.source)}</span>` : ''}
+            </div>
+          </div>
+        </div>`;
+    }
+
+    function renderPerfil() {
+      const ct   = CLIENT_TYPE_DATA[contact.client_type];
+      const disc = DISC_DATA[contact.disc_profile];
+      const vak  = SENSORY_DATA[contact.sensory_system];
+      const triggers = getTriggersByProfile(contact.client_type, contact.disc_profile);
+
+      document.getElementById('tab-perfil').innerHTML = `
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+          <div>
+            ${ct ? `
+            <div class="card" style="margin-bottom:16px;">
+              <div class="card-header"><h3 class="card-title">Tipo de Cliente</h3></div>
+              <p style="font-weight:700;color:var(--primary);margin-bottom:6px;">${ct.label}</p>
+              <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:10px;">${ct.descricao}</p>
+              <div class="info-box"><div class="info-box-title">Como agir</div>${ct.como_agir}</div>
+            </div>` : ''}
+            ${disc ? `
+            <div class="card" style="margin-bottom:16px;">
+              <div class="card-header"><h3 class="card-title">Perfil DISC</h3></div>
+              <p style="font-weight:700;color:var(--primary);margin-bottom:6px;">${disc.icon} ${disc.label}</p>
+              <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:10px;">${disc.descricao}</p>
+              <div class="info-box"><div class="info-box-title">Como agir</div>${disc.como_agir}</div>
+            </div>` : ''}
+          </div>
+          <div>
+            ${vak ? `
+            <div class="card" style="margin-bottom:16px;">
+              <div class="card-header"><h3 class="card-title">Sistema Representativo</h3></div>
+              <p style="font-weight:700;color:var(--primary);margin-bottom:6px;">${vak.icon} ${vak.label}</p>
+              <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:10px;">${vak.descricao}</p>
+              <div class="info-box"><div class="info-box-title">Como adaptar a abordagem</div>${vak.como_agir}</div>
+            </div>` : ''}
+            ${triggers.length ? `
+            <div class="card" style="margin-bottom:16px;">
+              <div class="card-header"><h3 class="card-title">Gatilhos Sugeridos</h3></div>
+              <div class="profile-tags">
+                ${triggers.map(t => `<span class="badge badge-accent">${t}</span>`).join('')}
+              </div>
+            </div>` : ''}
+            ${contact.notes ? `
+            <div class="card">
+              <div class="card-header"><h3 class="card-title">Notas</h3></div>
+              <p style="font-size:0.87rem;line-height:1.6;white-space:pre-wrap;">${contact.notes}</p>
+            </div>` : ''}
+            ${contact.facebook || contact.other_social ? `
+            <div class="card" style="margin-top:16px;">
+              <div class="card-header"><h3 class="card-title">Redes Sociais</h3></div>
+              ${contact.instagram ? `<div style="margin-bottom:6px;font-size:0.85rem;">📸 ${contact.instagram}</div>` : ''}
+              ${contact.facebook  ? `<div style="margin-bottom:6px;font-size:0.85rem;">👤 ${contact.facebook}</div>` : ''}
+              ${contact.other_social ? `<div style="font-size:0.85rem;">🔗 ${contact.other_social}</div>` : ''}
+            </div>` : ''}
+          </div>
+        </div>`;
+    }
+
+    function renderHistorico() {
+      const panel = document.getElementById('tab-historico');
+      const items = contactHistory;
+      panel.innerHTML = `
+        <div style="display:flex;justify-content:flex-end;margin-bottom:16px;">
+          <button class="btn btn-accent" onclick="openModal('modal-hist')">+ Registrar Contato</button>
+        </div>
+        ${items.length ? `
+        <div class="timeline">
+          ${items.map(h => `
+          <div class="timeline-item">
+            <div class="timeline-dot ${h.type}"></div>
+            <div class="timeline-header">
+              <span class="timeline-type">${{ whatsapp:'WhatsApp', ligacao:'Ligação', email:'Email', reuniao:'Reunião', outro:'Outro' }[h.type] || h.type}</span>
+              ${h.profiles?.name ? `<span class="badge badge-gray" style="font-size:0.7rem;">${h.profiles.name}</span>` : ''}
+              <span class="timeline-date">${formatDateTime(h.created_at)}</span>
+            </div>
+            ${h.notes ? `<div class="timeline-notes">${h.notes}</div>` : ''}
+          </div>`).join('')}
+        </div>` : '<div class="empty-state"><div class="empty-icon">📋</div><p>Nenhum contato registrado ainda</p></div>'}`;
+    }
+
+    function renderTarefas() {
+      const panel = document.getElementById('tab-tarefas');
+      const pendentes  = contactTasks.filter(t => t.status !== 'concluida');
+      const concluidas = contactTasks.filter(t => t.status === 'concluida');
+
+      panel.innerHTML = `
+        <div style="display:flex;justify-content:flex-end;margin-bottom:16px;">
+          <button class="btn btn-accent" onclick="openModal('modal-task');document.getElementById('task-date').value=todayISO();">+ Nova Tarefa</button>
+        </div>
+        ${pendentes.length ? pendentes.map(t => taskItem(t)).join('') : '<div class="empty-state"><div class="empty-icon">✅</div><p>Nenhuma tarefa pendente</p></div>'}
+        ${concluidas.length ? `
+        <div style="margin-top:24px;">
+          <p style="font-size:0.78rem;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);font-weight:600;margin-bottom:10px;">Concluídas</p>
+          ${concluidas.map(t => taskItem(t)).join('')}
+        </div>` : ''}`;
+    }
+
+    function taskItem(t) {
+      const isAtrasada = t.status === 'atrasada';
+      const isConcluida = t.status === 'concluida';
+      return `
+        <div class="task-item ${isAtrasada ? 'atrasada' : ''} ${isConcluida ? 'concluida' : ''}">
+          <div class="task-check ${isConcluida ? 'done' : ''}" onclick="${isConcluida ? '' : `concluirTask('${t.id}')`}">
+            ${isConcluida ? '✓' : ''}
+          </div>
+          <div class="task-body">
+            <div class="task-title">${t.title}</div>
+            <div class="task-meta">
+              <span>📅 ${formatDate(t.due_date)}${t.due_time ? ' às ' + t.due_time.slice(0,5) : ''}</span>
+              ${isAtrasada ? '<span style="color:var(--danger);font-weight:600;">Atrasada</span>' : ''}
+            </div>
+            ${t.description ? `<p style="font-size:0.82rem;color:var(--text-muted);margin-top:4px;">${t.description}</p>` : ''}
+          </div>
+          <div class="task-actions">
+            ${t.whatsapp_message && contact.phone ? `
+              <button class="btn btn-whatsapp btn-sm btn-icon" title="Abrir WhatsApp"
+                onclick="openWhatsApp('${contact.phone}', \`${t.whatsapp_message.replace(/`/g,"'")}\`)">💬</button>` : ''}
+            ${!isConcluida ? `<button class="btn btn-success btn-sm" onclick="concluirTask('${t.id}')">✓ Concluir</button>` : ''}
+          </div>
+        </div>`;
+    }
+
+    async function concluirTask(id) {
+      const { error } = await supabase.from('tasks').update({ status: 'concluida' }).eq('id', id);
+      if (error) { showToast('Erro ao concluir tarefa', 'error'); return; }
+      const t = contactTasks.find(x => x.id === id);
+      if (t) t.status = 'concluida';
+      renderTarefas();
+      showToast('Tarefa concluída!', 'success');
+    }
+
+    async function salvarHistorico() {
+      const notes = document.getElementById('hist-notes').value.trim();
+      if (!notes) { showToast('Adicione uma nota', 'error'); return; }
+      const type  = document.getElementById('hist-type').value;
+      try {
+        const sessionRes = await supabase.auth.getSession();
+        const userId = sessionRes?.data?.session?.user?.id || null;
+        const { error } = await supabase.from('contact_history').insert({
+          contact_id: contact.id,
+          type,
+          notes,
+          created_by: userId,
+        });
+        if (error) { showToast('Erro ao registrar: ' + error.message, 'error'); return; }
+        if (document.getElementById('hist-metric').checked) {
+          await supabase.from('metrics').insert({
+            contact_id: contact.id,
+            type: 'contato',
+            date: todayISO(),
+            created_by: userId,
+          });
+        }
+        showToast('Contato registrado!', 'success');
+        closeModal('modal-hist');
+        document.getElementById('hist-notes').value = '';
+        document.getElementById('hist-metric').checked = false;
+        await loadContact(contact.id);
+      } catch (err) {
+        showToast('Erro inesperado: ' + err.message, 'error');
+      }
+    }
+
+    async function salvarTarefa() {
+      const title = document.getElementById('task-title').value.trim();
+      const date  = document.getElementById('task-date').value;
+      if (!title) { showToast('Título é obrigatório', 'error'); return; }
+      if (!date)  { showToast('Data é obrigatória', 'error'); return; }
+      try {
+        const sessionRes = await supabase.auth.getSession();
+        const userId = sessionRes?.data?.session?.user?.id || null;
+        const base = {
+          contact_id:      contact.id,
+          title,
+          description:     document.getElementById('task-desc').value.trim() || null,
+          due_time:        document.getElementById('task-time').value || null,
+          whatsapp_message:document.getElementById('task-wa').value.trim() || null,
+          reminder_email:  document.getElementById('task-email-reminder').checked,
+          status:          'pendente',
+          created_by:      userId,
+        };
+        const useCadencia = document.getElementById('task-cadencia').checked;
+        if (useCadencia) {
+          const dates = generateCadenceDates(date);
+          const cadenceTitles = ['Dia 1: Abordagem inicial','Dia 3: Envio de valor','Dia 6: Retomada gentil','Dia 10: Urgência real','Dia 15: Último contato','Dia 30: Reativação'];
+          const tasks = dates.map((d, i) => ({
+            ...base,
+            title: cadenceTitles[i] || `Dia ${d.day}: ${title}`,
+            due_date: d.date,
+          }));
+          const { error } = await supabase.from('tasks').insert(tasks);
+          if (error) { showToast('Erro ao criar cadência: ' + error.message, 'error'); return; }
+          showToast('Cadência IMPAR criada (6 tarefas)!', 'success');
+        } else {
+          const { error } = await supabase.from('tasks').insert({ ...base, due_date: date });
+          if (error) { showToast('Erro ao criar tarefa: ' + error.message, 'error'); return; }
+          showToast('Tarefa criada!', 'success');
+        }
+        closeModal('modal-task');
+        await loadContact(contact.id);
+      } catch (err) {
+        showToast('Erro inesperado: ' + err.message, 'error');
+      }
+    }
+
+    function abrirEdicao() {
+      document.getElementById('modal-edit-body').innerHTML = `
+        <div class="form-row"><div class="form-group">
+          <label class="form-label">Nome <span class="required">*</span></label>
+          <input type="text" id="e-name" class="form-control" value="${contact.name || ''}">
+        </div><div class="form-group">
+          <label class="form-label">Telefone</label>
+          <input type="tel" id="e-phone" class="form-control" value="${contact.phone || ''}">
+        </div></div>
+        <div class="form-row"><div class="form-group">
+          <label class="form-label">Email</label>
+          <input type="email" id="e-email" class="form-control" value="${contact.email || ''}">
+        </div><div class="form-group">
+          <label class="form-label">Instagram</label>
+          <input type="text" id="e-instagram" class="form-control" value="${contact.instagram || ''}">
+        </div></div>
+        <div class="form-row"><div class="form-group">
+          <label class="form-label">Etapa do Funil</label>
+          <select id="e-stage" class="form-select">${FUNNEL_OPTIONS.map(o => `<option value="${o.value}" ${o.value===contact.funnel_stage?'selected':''}>${o.label}</option>`).join('')}</select>
+        </div><div class="form-group">
+          <label class="form-label">Perfil DISC</label>
+          <select id="e-disc" class="form-select"><option value="">Selecione...</option>${DISC_OPTIONS.map(o => `<option value="${o.value}" ${o.value===contact.disc_profile?'selected':''}>${o.label}</option>`).join('')}</select>
+        </div></div>
+        <div class="form-row"><div class="form-group">
+          <label class="form-label">Tipo de Cliente</label>
+          <select id="e-type" class="form-select"><option value="">Selecione...</option>${CLIENT_OPTIONS.map(o => `<option value="${o.value}" ${o.value===contact.client_type?'selected':''}>${o.label}</option>`).join('')}</select>
+        </div><div class="form-group">
+          <label class="form-label">Sistema VAK</label>
+          <select id="e-sensory" class="form-select"><option value="">Selecione...</option>${SENSORY_OPTIONS.map(o => `<option value="${o.value}" ${o.value===contact.sensory_system?'selected':''}>${o.label}</option>`).join('')}</select>
+        </div></div>
+        <div class="form-group">
+          <label class="form-label">Notas</label>
+          <textarea id="e-notes" class="form-textarea" rows="3">${contact.notes || ''}</textarea>
+        </div>`;
+      openModal('modal-edit');
+    }
+
+    async function salvarEdicao() {
+      const name = document.getElementById('e-name').value.trim();
+      if (!name) { showToast('Nome é obrigatório', 'error'); return; }
+      const payload = {
+        name,
+        phone:          document.getElementById('e-phone').value.trim()    || null,
+        email:          document.getElementById('e-email').value.trim()    || null,
+        instagram:      document.getElementById('e-instagram').value.trim()|| null,
+        funnel_stage:   document.getElementById('e-stage').value           || 'abordagem',
+        disc_profile:   document.getElementById('e-disc').value            || null,
+        client_type:    document.getElementById('e-type').value            || null,
+        sensory_system: document.getElementById('e-sensory').value         || null,
+        notes:          document.getElementById('e-notes').value.trim()    || null,
+      };
+      const { error } = await supabase.from('contacts').update(payload).eq('id', contact.id);
+      if (error) { showToast('Erro ao salvar', 'error'); return; }
+      showToast('Contato atualizado!', 'success');
+      closeModal('modal-edit');
+      await loadContact(contact.id);
+    }
+
+    function showTab(tab, btn) {
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById(`tab-${tab}`).classList.add('active');
+      btn.classList.add('active');
+    }
+
+    init();
+  </script>
+</body>
+</html>
