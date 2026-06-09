@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="css/styles.css">
   <script src="https://unpkg.com/@supabase/supabase-js@2.39.3/dist/umd/supabase.js"></script>
   <script src="js/config.js"></script>
-  <script src="js/utils.js"></script>h
+  <script src="js/utils.js"></script>
   <script src="js/auth.js"></script>
   <script src="js/nav.js"></script>
 </head>
@@ -15,7 +15,6 @@
   <div class="app-layout">
     <aside id="sidebar" class="sidebar"></aside>
     <div class="sidebar-overlay" id="sidebar-overlay"></div>
-
     <main class="main-content">
       <header class="page-header">
         <div style="display:flex;align-items:center;gap:12px;">
@@ -24,8 +23,20 @@
         </div>
         <span id="today-date" style="font-size:0.82rem;color:var(--text-muted);"></span>
       </header>
-
       <div class="page-body">
+
+        <!-- Alerta de ligações do dia -->
+        <div id="alerta-ligacoes" style="display:none;background:linear-gradient(135deg,var(--primary) 0%,#003a6e 100%);color:white;border-radius:14px;padding:18px 24px;margin-bottom:20px;align-items:center;gap:18px;box-shadow:0 4px 16px rgba(0,31,63,0.18);">
+          <span style="font-size:2.2rem;flex-shrink:0;">📞</span>
+          <div style="flex:1;">
+            <div style="font-weight:700;font-size:1.05rem;" id="alerta-ligacoes-texto">Você tem ligações para hoje</div>
+            <div style="font-size:0.82rem;opacity:0.85;margin-top:3px;">Acesse a Agenda para ver todos os detalhes e registrar cada contato</div>
+          </div>
+          <a href="agenda.html" class="btn" style="background:rgba(255,255,255,0.18);color:white;border:1.5px solid rgba(255,255,255,0.4);flex-shrink:0;font-weight:700;">
+            Ver Agenda
+          </a>
+        </div>
+
         <!-- Stats -->
         <div class="stats-grid" id="stats-grid">
           <div class="stat-card blue">
@@ -51,7 +62,7 @@
           <div class="card">
             <div class="card-header">
               <h2 class="card-title">📅 Agenda de Hoje</h2>
-              <a href="tarefas.html" class="btn btn-ghost btn-sm">Ver tudo</a>
+              <a href="agenda.html" class="btn btn-ghost btn-sm">Ver tudo</a>
             </div>
             <div id="agenda-list">
               <div class="empty-state"><div class="empty-icon">🎉</div><p>Nenhuma tarefa para hoje</p></div>
@@ -87,12 +98,12 @@
             </table>
           </div>
         </div>
+
       </div>
     </main>
   </div>
 
   <div id="toast-container"></div>
-
   <script>
     document.getElementById('today-date').textContent = new Date().toLocaleDateString('pt-BR', {
       weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
@@ -101,7 +112,6 @@
     async function loadDashboard() {
       await checkSession();
       await injectNav('dashboard');
-
       const today = todayISO();
       const firstDay = today.slice(0, 7) + '-01';
 
@@ -133,6 +143,14 @@
       document.getElementById('stat-atrasadas').textContent = atrasadas      ?? 0;
       document.getElementById('stat-hoje').textContent      = taskHoje       ?? 0;
 
+      const n = taskHoje ?? 0;
+      if (n > 0) {
+        const alertEl = document.getElementById('alerta-ligacoes');
+        alertEl.style.display = 'flex';
+        document.getElementById('alerta-ligacoes-texto').textContent =
+          n === 1 ? 'Você tem 1 ligação agendada para hoje' : `Você tem ${n} ligações agendadas para hoje`;
+      }
+
       renderAgenda(agendaItems || []);
       renderRecentContacts(recentContacts || []);
       renderFunnel(funnelData || []);
@@ -157,7 +175,7 @@
             ${t.whatsapp_message && t.contacts?.phone ? `
               <button class="btn btn-whatsapp btn-sm btn-icon"
                 title="Abrir WhatsApp"
-                onclick="openWhatsApp('${t.contacts.phone}', \`${t.whatsapp_message.replace(/`/g,"'")}\`)">
+                onclick="openWhatsApp('${t.contacts.phone}', ${JSON.stringify(t.whatsapp_message)})">
                 💬
               </button>` : ''}
             <a href="contato.html?id=${t.contact_id}" class="btn btn-outline btn-sm btn-icon" title="Ver contato">👤</a>
