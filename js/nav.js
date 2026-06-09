@@ -9,6 +9,7 @@ async function injectNav(activePage) {
 
   let overdueBadge = '';
   try {
+    const today = new Date().toISOString().split('T')[0];
     const { count } = await supabase
       .from('tasks')
       .select('*', { count: 'exact', head: true })
@@ -32,17 +33,20 @@ async function injectNav(activePage) {
         <span class="nav-icon">👥</span> Contatos
       </a>
       <a href="tarefas.html" class="nav-link ${activePage === 'tarefas' ? 'active' : ''}">
-        <span class="nav-icon">✅</span>  Tarefas ${overdueBadge}
+        <span class="nav-icon">✅</span> Tarefas ${overdueBadge}
       </a>
       <div class="nav-section-label">Análise</div>
       <a href="relatorios.html" class="nav-link ${activePage === 'relatorios' ? 'active' : ''}">
         <span class="nav-icon">📈</span> Relatórios
       </a>
+      <a href="agenda.html" class="nav-link ${activePage === 'agenda' ? 'active' : ''}">
+        <span class="nav-icon">📅</span> Agenda
+      </a>
       <a href="objecoes.html" class="nav-link ${activePage === 'objecoes' ? 'active' : ''}">
         <span class="nav-icon">💬</span> Objeções
       </a>
       <a href="gatilhos.html" class="nav-link ${activePage === 'gatilhos' ? 'active' : ''}">
-        <span class="nav-icon">⚡</span>  Gatilhos
+        <span class="nav-icon">⚡</span> Gatilhos
       </a>
       ${isAdmin ? `
       <div class="nav-section-label">Administração</div>
