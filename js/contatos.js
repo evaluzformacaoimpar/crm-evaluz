@@ -14,6 +14,9 @@
     bindEvents();
     setView('kanban');
     await loadContacts();
+    if (new URLSearchParams(window.location.search).get('novo') === '1') {
+      document.getElementById('btn-novo-contato').click();
+    }
   }
 
   function bindEvents() {
