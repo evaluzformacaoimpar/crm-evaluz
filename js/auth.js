@@ -7,7 +7,7 @@ async function checkSession() {
   const res = await supabase.auth.getSession();
   const session = res?.data?.session || null;
   if (!session) {
-    window.location.href = 'index.html';
+    window.location.href = 'index.html';h
     return null;
   }
   const profile = await getProfile(session.user.id);
@@ -43,7 +43,7 @@ async function requireAdmin() {
   const result = await checkSession();
   if (!result) return;
   if (result.profile?.role !== 'admin') {
-    window.location.href = 'dashboard.html';
+        window.location.href = 'painel.html';
   }
   return result;
 }
