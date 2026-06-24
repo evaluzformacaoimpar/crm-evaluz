@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Eva Luz CRM — Usuários</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <script src="https://unpkg.com/@supabase/supabase-js@2.39.3/dist/umd/supabase.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/nav.js"></script>
+</head>
+<body>
+  <div class="app-layout">
+    <aside id="sidebar" class="sidebar"></aside>
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+    <main class="main-content">
+      <header class="page-header">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <button class="hamburger" id="hamburger">☰</button>
+          <h1 class="page-title">Gestão de <span>Usuários</span></h1>
+        </div>
+        <button class="btn btn-accent" onclick="openModal('modal-invite')">+ Convidar Colaborador</button>
+      </header>
+      <div class="page-body">
+
+        <!-- Usuários ativos -->
+        <div class="card" style="padding:0;overflow:hidden;margin-bottom:24px;">
+          <div class="table-responsive">
+            <table class="table">
+              <thead>
+                <tr><th>Nome</th><th>Função</th><th>Membro desde</th><th>Ações</th></tr>
+              </thead>
+              <tbody id="users-body">
+                <tr><td colspan="4" style="text-align:center;color:var(--text-muted);">Carregando...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Convites pendentes -->
+        <div style="margin-bottom:12px;font-weight:700;font-size:0.87rem;color:var(--primary);">Convites Pendentes</div>
+        <div class="card" style="padding:0;overflow:hidden;margin-bottom:20px;">
+          <div class="table-responsive">
+            <table class="table">
+              <thead>
+                <tr><th>Email</th><th>Nome</th><th>Função</th><th>Enviado em</th><th>Link de Acesso</th><th>Ações</th></tr>
+              </thead>
+              <tbody id="invites-body">
+                <tr><td colspan="6" style="text-align:center;color:var(--text-muted);">Carregando...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card" style="background:rgba(184,115,51,0.05);border-color:rgba(184,115,51,0.2);">
+          <p style="font-size:0.85rem;color:var(--text-muted);line-height:1.6;">
+            <strong>Como funciona:</strong> Ao convidar um colaborador, o sistema gera um link de cadastro exclusivo para o email informado.
+            Você copia esse link e envia pelo WhatsApp ou email. O colaborador clica no link e cria a própria senha.
+            Somente o email convidado consegue usar o link. Colaboradores podem cadastrar e atualizar contatos, registrar histórico e tarefas.
+            Somente administradoras podem excluir contatos e gerenciar usuários.
+          </p>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Modal Convidar -->
+  <div id="modal-invite" class="modal-overlay" style="display:none;" onclick="closeModalOnOverlay(event)">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title">Convidar Colaborador</h3>
+        <button class="btn btn-ghost btn-icon" onclick="closeModal('modal-invite')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Nome Completo <span class="required">*</span></label>
+          <input type="text" id="inv-name" class="form-control" placeholder="Nome do colaborador">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email <span class="required">*</span></label>
+          <input type="email" id="inv-email" class="form-control" placeholder="email@colaborador.com">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Função</label>
+          <select id="inv-role" class="form-select">
+            <option value="colaborador">Colaborador</option>
+            <option value="admin">Administrador</option>
+          </select>
+        </div>
+        <div style="background:rgba(52,152,219,0.06);border:1px solid rgba(52,152,219,0.2);border-radius:8px;padding:12px;font-size:0.83rem;color:var(--text-muted);line-height:1.5;">
+          Após clicar em "Gerar Link", você verá o link de cadastro para copiar e enviar pelo WhatsApp ou email.
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeModal('modal-invite')">Cancelar</button>
+        <button class="btn btn-accent" onclick="gerarConvite()">Gerar Link de Convite</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Link Gerado -->
+  <div id="modal-link" class="modal-overlay" style="display:none;" onclick="closeModalOnOverlay(event)">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title">Link de Convite Gerado</h3>
+        <button class="btn btn-ghost btn-icon" onclick="closeModal('modal-link')">✕</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size:0.87rem;margin-bottom:14px;line-height:1.6;">
+          Copie o link abaixo e envie para o colaborador. Ele precisará usar <strong>exatamente este link</strong> para criar a senha.
+        </p>
+        <div style="display:flex;gap:8px;align-items:stretch;">
+          <input type="text" id="link-gerado" class="form-control" readonly style="font-size:0.78rem;background:var(--bg);">
+          <button class="btn btn-accent" onclick="copiarLink()" style="white-space:nowrap;">Copiar</button>
+        </div>
+        <div style="margin-top:14px;background:rgba(40,167,69,.08);border:1px solid rgba(40,167,69,.2);border-radius:8px;padding:12px;font-size:0.82rem;color:var(--success);line-height:1.5;">
+          ✅ Convite registrado. O link é válido para uso único. Após o colaborador criar a senha, ele some da lista de pendentes.
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-accent" onclick="closeModal('modal-link')">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+
+  <script>
+    let profiles = [];
+    let invites  = [];
+
+    async function init() {
+      const result = await requireAdmin();
+      if (!result) return;
+      await injectNav('admin');
+      await Promise.all([loadProfiles(), loadInvites()]);
+    }
+
+    async function loadProfiles() {
+      const { data, error } = await supabase.from('profiles').select('*').order('created_at');
+      if (error) { showToast('Erro ao carregar usuários', 'error'); return; }
+      profiles = data || [];
+      renderProfiles();
+    }
+
+    async function loadInvites() {
+      const { data, error } = await supabase
+        .from('invited_emails')
+        .select('*')
+        .eq('used', false)
+        .order('created_at', { ascending: false });
+      if (error) {
+        document.getElementById('invites-body').innerHTML =
+          '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);">Execute o schema_updates.sql no Supabase para habilitar convites</td></tr>';
+        return;
+      }
+      invites = data || [];
+      renderInvites();
+    }
+
+    function renderProfiles() {
+      const tbody = document.getElementById('users-body');
+      const currentUser = getUser();
+      if (!profiles.length) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);">Nenhum usuário encontrado</td></tr>';
+        return;
+      }
+      tbody.innerHTML = profiles.map(p => `
+        <tr>
+          <td style="font-weight:600;">${p.name} ${p.id === currentUser?.id ? '<span class="badge badge-accent" style="font-size:0.68rem;">Você</span>' : ''}</td>
+          <td><span class="badge ${p.role === 'admin' ? 'badge-primary' : 'badge-gray'}">${p.role === 'admin' ? '⚙️ Admin' : '👤 Colaborador'}</span></td>
+          <td style="color:var(--text-muted);font-size:0.82rem;">${formatDate(p.created_at)}</td>
+          <td>${p.id !== currentUser?.id ? `
+            <div class="table-actions">
+              <button class="btn btn-outline btn-sm" onclick="alterarRole('${p.id}','${p.role}','${p.name}')">
+                ${p.role === 'admin' ? '→ Colaborador' : '→ Admin'}
+              </button>
+            </div>` : ''}
+          </td>
+        </tr>`).join('');
+    }
+
+    function renderInvites() {
+      const tbody = document.getElementById('invites-body');
+      if (!invites.length) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);">Nenhum convite pendente</td></tr>';
+        return;
+      }
+      const base = window.location.origin + window.location.pathname.replace('admin.html','');
+      tbody.innerHTML = invites.map(inv => {
+        const link = base + 'signup.html?token=' + inv.id;
+        return `<tr>
+          <td>${inv.email}</td>
+          <td style="font-weight:600;">${inv.name}</td>
+          <td><span class="badge ${inv.role === 'admin' ? 'badge-primary' : 'badge-gray'}">${inv.role === 'admin' ? '⚙️ Admin' : '👤 Colaborador'}</span></td>
+          <td style="color:var(--text-muted);font-size:0.82rem;">${formatDate(inv.created_at)}</td>
+          <td>
+            <button class="btn btn-outline btn-sm" onclick="mostrarLink('${link}')">🔗 Ver Link</button>
+          </td>
+          <td>
+            <button class="btn btn-danger btn-sm btn-icon" onclick="cancelarConvite('${inv.id}')" title="Cancelar convite">🗑️</button>
+          </td>
+        </tr>`;
+      }).join('');
+    }
+
+    async function gerarConvite() {
+      const name  = document.getElementById('inv-name').value.trim();
+      const email = document.getElementById('inv-email').value.trim();
+      const role  = document.getElementById('inv-role').value;
+      if (!name || !email) { showToast('Preencha nome e email', 'error'); return; }
+
+      const sessionRes = await supabase.auth.getSession();
+      const userId = sessionRes?.data?.session?.user?.id || null;
+
+      const btn = document.querySelector('#modal-invite .btn-accent');
+      btn.textContent = 'Gerando...';
+      btn.disabled = true;
+
+      // Remove convite anterior para o mesmo email (se houver)
+      await supabase.from('invited_emails').delete().eq('email', email).eq('used', false);
+
+      const { data, error } = await supabase
+        .from('invited_emails')
+        .insert({ email, name, role, invited_by: userId })
+        .select('id')
+        .single();
+
+      btn.textContent = 'Gerar Link de Convite';
+      btn.disabled = false;
+
+      if (error) {
+        showToast('Erro ao gerar convite: ' + error.message, 'error');
+        return;
+      }
+
+      closeModal('modal-invite');
+      document.getElementById('inv-name').value  = '';
+      document.getElementById('inv-email').value = '';
+
+      const base = window.location.origin + window.location.pathname.replace('admin.html','');
+      const link = base + 'signup.html?token=' + data.id;
+      mostrarLink(link);
+      await loadInvites();
+    }
+
+    function mostrarLink(link) {
+      document.getElementById('link-gerado').value = link;
+      openModal('modal-link');
+    }
+
+    function copiarLink() {
+      const input = document.getElementById('link-gerado');
+      input.select();
+      document.execCommand('copy');
+      showToast('Link copiado!', 'success');
+    }
+
+    async function cancelarConvite(id) {
+      if (!confirm('Cancelar este convite?')) return;
+      const { error } = await supabase.from('invited_emails').delete().eq('id', id);
+      if (error) { showToast('Erro ao cancelar', 'error'); return; }
+      showToast('Convite cancelado', 'success');
+      await loadInvites();
+    }
+
+    async function alterarRole(id, currentRole, name) {
+      const newRole = currentRole === 'admin' ? 'colaborador' : 'admin';
+      if (!confirm(`Alterar ${name} para ${newRole === 'admin' ? 'Administrador' : 'Colaborador'}?`)) return;
+      const { error } = await supabase.from('profiles').update({ role: newRole }).eq('id', id);
+      if (error) { showToast('Erro ao alterar função', 'error'); return; }
+      showToast(`Função alterada para ${newRole}`, 'success');
+      await loadProfiles();
+    }
+
+    init();
+  </script>
+</body>
+</html>

@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Eva Luz CRM — Contato</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <script src="https://unpkg.com/@supabase/supabase-js@2.39.3/dist/umd/supabase.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/nav.js"></script>
+</head>
+<body>
+  <div class="app-layout">
+    <aside id="sidebar" class="sidebar"></aside>
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+    <main class="main-content">
+      <header class="page-header">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <button class="hamburger" id="hamburger">☰</button>
+          <a href="contatos.html" class="btn btn-ghost btn-sm">← Contatos</a>
+        </div>
+        <div id="header-actions"></div>
+      </header>
+      <div class="page-body">
+        <div id="contact-header-area"></div>
+        <div class="tabs" id="tabs-nav">
+          <button class="tab-btn active" onclick="showTab('perfil',this)">👤 Perfil</button>
+          <button class="tab-btn" onclick="showTab('historico',this)">📋 Histórico</button>
+          <button class="tab-btn" onclick="showTab('tarefas',this)">✅ Tarefas</button>
+          <button class="tab-btn" onclick="showTab('proposta',this)">📄 Proposta</button>
+        </div>
+        <div id="tab-perfil"    class="tab-panel active"></div>
+        <div id="tab-historico" class="tab-panel"></div>
+        <div id="tab-tarefas"   class="tab-panel"></div>
+        <div id="tab-proposta"  class="tab-panel"></div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Modal Editar Contato -->
+  <div id="modal-edit" class="modal-overlay" style="display:none;" onclick="closeModalOnOverlay(event)">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <h3 class="modal-title">Editar Contato</h3>
+        <button class="btn btn-ghost btn-icon" onclick="closeModal('modal-edit')">✕</button>
+      </div>
+      <div class="modal-body" id="modal-edit-body"></div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeModal('modal-edit')">Cancelar</button>
+        <button class="btn btn-accent" onclick="salvarEdicao()">Salvar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Registrar Histórico -->
+  <div id="modal-hist" class="modal-overlay" style="display:none;" onclick="closeModalOnOverlay(event)">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title">Registrar Contato</h3>
+        <button class="btn btn-ghost btn-icon" onclick="closeModal('modal-hist')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Tipo de Interação</label>
+          <select id="hist-type" class="form-select">
+            <option value="whatsapp">WhatsApp</option>
+            <option value="ligacao">Ligação</option>
+            <option value="email">Email</option>
+            <option value="reuniao">Reunião</option>
+            <option value="outro">Outro</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Notas / O que foi tratado <span class="required">*</span></label>
+          <textarea id="hist-notes" class="form-textarea" rows="4" placeholder="Descreva o que foi discutido..."></textarea>
+        </div>
+        <label style="display:flex;align-items:center;gap:8px;font-size:0.85rem;cursor:pointer;">
+          <input type="checkbox" id="hist-metric" style="width:16px;height:16px;">
+          Registrar como "contato feito" nas métricas
+        </label>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeModal('modal-hist')">Cancelar</button>
+        <button class="btn btn-accent" onclick="salvarHistorico()">Registrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Nova / Editar Tarefa -->
+  <div id="modal-task" class="modal-overlay" style="display:none;" onclick="closeModalOnOverlay(event)">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modal-task-title">Nova Tarefa</h3>
+        <button class="btn btn-ghost btn-icon" onclick="closeModal('modal-task')">✕</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="task-edit-id">
+        <div class="form-group">
+          <label class="form-label">Título <span class="required">*</span></label>
+          <input type="text" id="task-title" class="form-control" placeholder="Ex: Follow-up dia 3">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Data <span class="required">*</span></label>
+            <input type="date" id="task-date" class="form-control">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Horário</label>
+            <input type="time" id="task-time" class="form-control">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Tipo de Ação</label>
+          <select id="task-tipo" class="form-select">
+            <option value="ligacao">📞 Ligação</option>
+            <option value="whatsapp">💬 WhatsApp</option>
+            <option value="reuniao">🤝 Reunião</option>
+            <option value="email">📧 Email</option>
+            <option value="outro">📌 Outro</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Descrição</label>
+          <textarea id="task-desc" class="form-textarea" rows="2" placeholder="Detalhes da tarefa..."></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Mensagem WhatsApp (opcional)</label>
+          <textarea id="task-wa" class="form-textarea" rows="3" placeholder="Mensagem que será enviada ao clicar no botão WhatsApp..."></textarea>
+        </div>
+        <label style="display:flex;align-items:center;gap:8px;font-size:0.85rem;cursor:pointer;margin-bottom:12px;">
+          <input type="checkbox" id="task-email-reminder" style="width:16px;height:16px;">
+          Receber lembrete por email no dia
+        </label>
+        <div id="cadencia-option" style="background:rgba(184,115,51,0.06);border:1px solid rgba(184,115,51,0.2);border-radius:8px;padding:12px;">
+          <label style="display:flex;align-items:center;gap:8px;font-size:0.85rem;cursor:pointer;">
+            <input type="checkbox" id="task-cadencia" style="width:16px;height:16px;">
+            <span><strong>Criar cadência completa IMPAR</strong> (dias 1, 3, 6, 10, 15 e 30 a partir da data escolhida)</span>
+          </label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeModal('modal-task')">Cancelar</button>
+        <button class="btn btn-accent" id="btn-salvar-task" onclick="salvarTarefa()">Criar Tarefa</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Ver Tarefa -->
+  <div id="modal-ver-task" class="modal-overlay" style="display:none;" onclick="closeModalOnOverlay(event)">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title">Detalhes da Tarefa</h3>
+        <button class="btn btn-ghost btn-icon" onclick="closeModal('modal-ver-task')">✕</button>
+      </div>
+      <div class="modal-body" id="modal-ver-task-body"></div>
+      <div class="modal-footer" id="modal-ver-task-footer"></div>
+    </div>
+  </div>
+
+  <!-- Modal Nova / Editar Proposta -->
+  <div id="modal-proposta" class="modal-overlay" style="display:none;" onclick="closeModalOnOverlay(event)">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modal-proposta-title">Nova Proposta</h3>
+        <button class="btn btn-ghost btn-icon" onclick="closeModal('modal-proposta')">✕</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="prop-id">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Título da Proposta <span class="required">*</span></label>
+            <input type="text" id="prop-titulo" class="form-control" placeholder="Ex: Proposta Formação IMPAR — Turma Julho">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Valor (R$) <span class="required">*</span></label>
+            <input type="number" id="prop-valor" class="form-control" placeholder="1500.00" step="0.01" min="0">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Forma de Pagamento</label>
+            <select id="prop-metodo" class="form-select">
+              <option value="pix">PIX</option>
+              <option value="cartao_credito">Cartão de Crédito</option>
+              <option value="cartao_debito">Cartão de Débito</option>
+              <option value="boleto">Boleto</option>
+              <option value="dinheiro">Dinheiro</option>
+              <option value="transferencia">Transferência</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Parcelas</label>
+            <select id="prop-parcelas" class="form-select">
+              <option value="1">À vista</option>
+              <option value="2">2x</option>
+              <option value="3">3x</option>
+              <option value="4">4x</option>
+              <option value="5">5x</option>
+              <option value="6">6x</option>
+              <option value="10">10x</option>
+              <option value="12">12x</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">CPF do Cliente</label>
+          <input type="text" id="prop-cpf" class="form-control" placeholder="000.000.000-00">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Itens contratados / Observações</label>
+          <textarea id="prop-notas" class="form-textarea" rows="3" placeholder="Descreva o que está incluído na proposta..."></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Status</label>
+          <select id="prop-status" class="form-select">
+            <option value="rascunho">Rascunho</option>
+            <option value="enviada" selected>Enviada</option>
+            <option value="aceita">Aceita</option>
+            <option value="recusada">Recusada</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeModal('modal-proposta')">Cancelar</button>
+        <button class="btn btn-ghost" onclick="gerarPropostaPDF()">📄 Gerar PDF</button>
+        <button class="btn btn-accent" onclick="salvarProposta()">Salvar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+
+  <script>
+    let contact         = null;
+    let contactHistory  = [];
+    let contactTasks    = [];
+    let contactPropostas = [];
+    let taskFilterStatus = 'abertas';
+    let calendarDate    = new Date();
+
+    const TASK_TIPO_LABELS = {
+      ligacao:'📞 Ligação', whatsapp:'💬 WhatsApp',
+      reuniao:'🤝 Reunião', email:'📧 Email', outro:'📌 Outro'
+    };
+    const PROP_METODO_LABELS = {
+      pix:'PIX', cartao_credito:'Cartão de Crédito', cartao_debito:'Cartão de Débito',
+      boleto:'Boleto', dinheiro:'Dinheiro', transferencia:'Transferência'
+    };
+    const PROP_STATUS = {
+      rascunho:{ label:'Rascunho', color:'badge-gray' },
+      enviada: { label:'Enviada',  color:'badge-primary' },
+      aceita:  { label:'Aceita',   color:'stage-vendas_efetivadas' },
+      recusada:{ label:'Recusada', color:'stage-sem_interesse' },
+    };
+
+    async function init() {
+      await checkSession();
+      await injectNav('contatos');
+      const id = new URLSearchParams(location.search).get('id');
+      if (!id) { window.location.href = 'contatos.html'; return; }
+      await loadContact(id);
+    }
+
+    async function loadContact(id) {
+      const [{ data:c }, { data:hist }, { data:tasks }, { data:props }] = await Promise.all([
+        supabase.from('contacts').select('*').eq('id', id).single(),
+        supabase.from('contact_history').select('*, profiles(name)').eq('contact_id', id).order('created_at', { ascending:false }),
+        supabase.from('tasks').select('*').eq('contact_id', id).order('due_date', { ascending:true }),
+        supabase.from('propostas').select('*').eq('contact_id', id).order('created_at', { ascending:false }),
+      ]);
+      if (!c) { showToast('Contato não encontrado', 'error'); return; }
+      contact          = c;
+      contactHistory   = hist  || [];
+      contactTasks     = tasks || [];
+      contactPropostas = props || [];
+      renderHeader();
+      renderPerfil();
+      renderHistorico();
+      renderTarefas();
+      renderPropostas();
+    }
+
+    /* ── Header ──────────────────────────────────────────── */
+    function renderHeader() {
+      document.title = `CRM — ${contact.name}`;
+      document.getElementById('header-actions').innerHTML = `
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          ${contact.phone ? `<button class="btn btn-whatsapp btn-sm" onclick="openWhatsApp('${contact.phone}','')">💬 WhatsApp</button>` : ''}
+          <button class="btn btn-outline btn-sm" onclick="abrirEdicao()">✏️ Editar</button>
+        </div>`;
+
+      document.getElementById('contact-header-area').innerHTML = `
+        <div class="contact-header">
+          <div class="contact-avatar">${getInitials(contact.name)}</div>
+          <div class="contact-info">
+            <div class="contact-name">${contact.name}</div>
+            <div class="contact-meta">
+              ${contact.phone    ? `<span>📱 ${formatPhone(contact.phone)}</span>` : ''}
+              ${contact.email    ? `<span>✉️ ${contact.email}</span>` : ''}
+              ${contact.instagram? `<span>📸 ${contact.instagram}</span>` : ''}
+            </div>
+            <div class="profile-tags" style="margin-top:10px;">
+              ${funnelBadge(contact.funnel_stage)}
+              ${contact.disc_profile    ? `<span class="profile-tag ${DISC_DATA[contact.disc_profile]?.tag}">${DISC_DATA[contact.disc_profile]?.icon} ${getDiscLabel(contact.disc_profile)}</span>` : ''}
+              ${contact.sensory_system  ? `<span class="profile-tag ${SENSORY_DATA[contact.sensory_system]?.tag}">${SENSORY_DATA[contact.sensory_system]?.icon} ${getSensoryLabel(contact.sensory_system)}</span>` : ''}
+              ${contact.source          ? `<span class="badge badge-gray">${getSourceLabel(contact.source)}</span>` : ''}
+            </div>
+          </div>
+        </div>`;
+    }
+
+    /* ── Aba Perfil ──────────────────────────────────────── */
+    function renderPerfil() {
+      const ct      = CLIENT_TYPE_DATA[contact.client_type];
+      const disc    = DISC_DATA[contact.disc_profile];
+      const vak     = SENSORY_DATA[contact.sensory_system];
+      const triggers = getTriggersByProfile(contact.client_type, contact.disc_profile);
+
+      document.getElementById('tab-perfil').innerHTML = `
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+          <div>
+            ${ct ? `<div class="card" style="margin-bottom:16px;">
+              <div class="card-header"><h3 class="card-title">Tipo de Cliente</h3></div>
+              <p style="font-weight:700;color:var(--primary);margin-bottom:6px;">${ct.label}</p>
+              <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:10px;">${ct.descricao}</p>
+              <div class="info-box"><div class="info-box-title">Como agir</div>${ct.como_agir}</div>
+            </div>` : ''}
+            ${disc ? `<div class="card" style="margin-bottom:16px;">
+              <div class="card-header"><h3 class="card-title">Perfil DISC</h3></div>
+              <p style="font-weight:700;color:var(--primary);margin-bottom:6px;">${disc.icon} ${disc.label}</p>
+              <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:10px;">${disc.descricao}</p>
+              <div class="info-box"><div class="info-box-title">Como agir</div>${disc.como_agir}</div>
+            </div>` : ''}
+          </div>
+          <div>
+            ${vak ? `<div class="card" style="margin-bottom:16px;">
+              <div class="card-header"><h3 class="card-title">Sistema Representativo</h3></div>
+              <p style="font-weight:700;color:var(--primary);margin-bottom:6px;">${vak.icon} ${vak.label}</p>
+              <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:10px;">${vak.descricao}</p>
+              <div class="info-box"><div class="info-box-title">Como adaptar a abordagem</div>${vak.como_agir}</div>
+            </div>` : ''}
+            ${triggers.length ? `<div class="card" style="margin-bottom:16px;">
+              <div class="card-header"><h3 class="card-title">Gatilhos Sugeridos</h3></div>
+              <div class="profile-tags">${triggers.map(t => `<span class="badge badge-accent">${t}</span>`).join('')}</div>
+            </div>` : ''}
+            <div class="card">
+              ${contact.notes ? `<div class="card-header"><h3 class="card-title">Notas</h3></div>
+              <p style="font-size:0.87rem;line-height:1.6;white-space:pre-wrap;margin-bottom:${contact.nf_link?'14px':'0'}">${contact.notes}</p>` : ''}
+              ${contact.nf_link ? `
+              <div style="${contact.notes?'border-top:1px solid var(--border);padding-top:14px;':''}">
+                <div style="font-size:0.75rem;text-transform:uppercase;color:var(--accent);font-weight:700;margin-bottom:8px;">Nota Fiscal</div>
+                <a href="${contact.nf_link}" target="_blank" rel="noopener" class="btn btn-outline btn-sm">🧾 Abrir Emissor de NF</a>
+              </div>` : ''}
+            </div>
+            ${contact.facebook || contact.other_social ? `<div class="card" style="margin-top:16px;">
+              <div class="card-header"><h3 class="card-title">Redes Sociais</h3></div>
+              ${contact.instagram   ? `<div style="margin-bottom:6px;font-size:0.85rem;">📸 ${contact.instagram}</div>` : ''}
+              ${contact.facebook    ? `<div style="margin-bottom:6px;font-size:0.85rem;">👤 ${contact.facebook}</div>` : ''}
+              ${contact.other_social? `<div style="font-size:0.85rem;">🔗 ${contact.other_social}</div>` : ''}
+            </div>` : ''}
+          </div>
+        </div>`;
+    }
+
+    /* ── Aba Histórico ───────────────────────────────────── */
+    function renderHistorico() {
+      const panel = document.getElementById('tab-historico');
+      panel.innerHTML = `
+        <div style="display:flex;justify-content:flex-end;margin-bottom:16px;">
+          <button class="btn btn-accent" onclick="openModal('modal-hist')">+ Registrar Contato</button>
+        </div>
+        ${contactHistory.length ? `<div class="timeline">
+          ${contactHistory.map(h => `
+          <div class="timeline-item">
+            <div class="timeline-dot ${h.type}"></div>
+            <div class="timeline-header">
+              <span class="timeline-type">${{whatsapp:'WhatsApp',ligacao:'Ligação',email:'Email',reuniao:'Reunião',outro:'Outro'}[h.type]||h.type}</span>
+              ${h.profiles?.name ? `<span class="badge badge-gray" style="font-size:0.7rem;">${h.profiles.name}</span>` : ''}
+              <span class="timeline-date">${formatDateTime(h.created_at)}</span>
+            </div>
+            ${h.notes ? `<div class="timeline-notes">${h.notes}</div>` : ''}
+          </div>`).join('')}
+        </div>` : '<div class="empty-state"><div class="empty-icon">📋</div><p>Nenhum contato registrado ainda</p></div>'}`;
+    }
+
+    /* ── Aba Tarefas ─────────────────────────────────────── */
+    function renderTarefas() {
+      const panel     = document.getElementById('tab-tarefas');
+      const abertas   = contactTasks.filter(t => t.status !== 'concluida');
+      const concluidas = contactTasks.filter(t => t.status === 'concluida');
+      const displayed  = taskFilterStatus === 'abertas' ? abertas
+                       : taskFilterStatus === 'concluidas' ? concluidas
+                       : contactTasks;
+
+      panel.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
+          <div style="display:flex;gap:4px;">
+            <button class="btn btn-sm ${taskFilterStatus==='abertas'?'btn-primary':'btn-outline'}" onclick="setTaskFilter('abertas')">
+              Abertas <span style="background:rgba(0,0,0,.1);border-radius:10px;padding:1px 6px;font-size:0.72rem;margin-left:4px;">${abertas.length}</span>
+            </button>
+            <button class="btn btn-sm ${taskFilterStatus==='concluidas'?'btn-primary':'btn-outline'}" onclick="setTaskFilter('concluidas')">
+              Concluídas <span style="background:rgba(0,0,0,.1);border-radius:10px;padding:1px 6px;font-size:0.72rem;margin-left:4px;">${concluidas.length}</span>
+            </button>
+            <button class="btn btn-sm ${taskFilterStatus==='todas'?'btn-primary':'btn-outline'}" onclick="setTaskFilter('todas')">
+              Todas <span style="background:rgba(0,0,0,.1);border-radius:10px;padding:1px 6px;font-size:0.72rem;margin-left:4px;">${contactTasks.length}</span>
+            </button>
+          </div>
+          <button class="btn btn-accent" onclick="abrirNovaTarefa()">+ Nova Tarefa</button>
+        </div>
+
+        ${displayed.length
+          ? displayed.map(t => taskItem(t)).join('')
+          : `<div class="empty-state"><div class="empty-icon">✅</div><p>${
+              taskFilterStatus==='abertas'   ? 'Nenhuma tarefa em aberto' :
+              taskFilterStatus==='concluidas'? 'Nenhuma tarefa concluída' :
+              'Nenhuma tarefa cadastrada'
+            }</p></div>`
+        }
+
+        <div style="margin-top:28px;border-top:1px solid var(--border);padding-top:20px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+            <span style="font-weight:700;font-size:0.87rem;color:var(--primary);">📅 Calendário de Tarefas</span>
+            <div style="display:flex;gap:6px;align-items:center;">
+              <button class="btn btn-ghost btn-sm" onclick="mudarMes(-1)" style="padding:4px 8px;">◀</button>
+              <span id="cal-mes-label" style="font-size:0.82rem;font-weight:600;min-width:130px;text-align:center;"></span>
+              <button class="btn btn-ghost btn-sm" onclick="mudarMes(1)" style="padding:4px 8px;">▶</button>
+            </div>
+          </div>
+          <div id="mini-calendario" style="background:var(--card-bg);border:1px solid var(--border);border-radius:10px;padding:16px;"></div>
+        </div>`;
+
+      renderCalendario();
+    }
+
+    function setTaskFilter(f) {
+      taskFilterStatus = f;
+      renderTarefas();
+    }
+
+    function taskItem(t) {
+      const isAtrasada  = t.status === 'atrasada';
+      const isConcluida = t.status === 'concluida';
+      const tipoLabel   = TASK_TIPO_LABELS[t.tipo] || '📌 Tarefa';
+      return `
+        <div class="task-item ${isAtrasada?'atrasada':''} ${isConcluida?'concluida':''}">
+          <div class="task-check ${isConcluida?'done':''}" onclick="${isConcluida?'':` concluirTask('${t.id}')`}" title="${isConcluida?'Concluída':'Marcar como concluída'}">
+            ${isConcluida?'✓':''}
+          </div>
+          <div class="task-body" style="cursor:pointer;flex:1;" onclick="verTarefa('${t.id}')">
+            <div class="task-title">${t.title}</div>
+            <div class="task-meta">
+              <span>${tipoLabel}</span>
+              <span>📅 ${formatDate(t.due_date)}${t.due_time ? ' às '+t.due_time.slice(0,5) : ''}</span>
+              ${isAtrasada  ? '<span style="color:var(--danger);font-weight:600;">Atrasada</span>' : ''}
+              ${isConcluida ? '<span style="color:var(--success);font-weight:600;">Concluída</span>' : ''}
+            </div>
+            ${t.description ? `<p style="font-size:0.82rem;color:var(--text-muted);margin-top:4px;">${t.description}</p>` : ''}
+          </div>
+          <div class="task-actions">
+            ${t.whatsapp_message && contact.phone ? `<button class="btn btn-whatsapp btn-sm btn-icon" title="Abrir WhatsApp" onclick="openWhatsApp('${contact.phone}',\`${t.whatsapp_message.replace(/`/g,"'")}\`)">💬</button>` : ''}
+            <button class="btn btn-outline btn-sm btn-icon" title="Ver detalhes" onclick="verTarefa('${t.id}')">👁️</button>
+            ${!isConcluida ? `<button class="btn btn-outline btn-sm btn-icon" title="Editar" onclick="editarTarefa('${t.id}')">✏️</button>` : ''}
+            ${!isConcluida ? `<button class="btn btn-success btn-sm" onclick="concluirTask('${t.id}')">✓ Concluir</button>` : ''}
+          </div>
+        </div>`;
+    }
+
+    function verTarefa(id) {
+      const t = contactTasks.find(x => x.id === id);
+      if (!t) return;
+      const isConcluida = t.status === 'concluida';
+      const tipoLabel   = TASK_TIPO_LABELS[t.tipo] || '📌 Tarefa';
+      document.getElementById('modal-ver-task-body').innerHTML = `
+        <div style="display:grid;gap:14px;">
+          <div>
+            <span style="font-size:0.72rem;text-transform:uppercase;color:var(--text-muted);font-weight:600;">Título</span>
+            <p style="font-weight:700;font-size:1rem;margin-top:4px;">${t.title}</p>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <div>
+              <span style="font-size:0.72rem;text-transform:uppercase;color:var(--text-muted);font-weight:600;">Tipo</span>
+              <p style="margin-top:4px;">${tipoLabel}</p>
+            </div>
+            <div>
+              <span style="font-size:0.72rem;text-transform:uppercase;color:var(--text-muted);font-weight:600;">Data</span>
+              <p style="margin-top:4px;">📅 ${formatDate(t.due_date)}${t.due_time ? ' às '+t.due_time.slice(0,5) : ''}</p>
+            </div>
+          </div>
+          <div>
+            <span style="font-size:0.72rem;text-transform:uppercase;color:var(--text-muted);font-weight:600;">Status</span>
+            <p style="margin-top:4px;">${
+              isConcluida         ? '<span style="color:var(--success);font-weight:600;">✓ Concluída</span>'  :
+              t.status==='atrasada'? '<span style="color:var(--danger);font-weight:600;">Atrasada</span>'     :
+                                    '<span style="color:var(--accent);font-weight:600;">Em aberto</span>'
+            }</p>
+          </div>
+          ${t.description ? `<div>
+            <span style="font-size:0.72rem;text-transform:uppercase;color:var(--text-muted);font-weight:600;">Descrição</span>
+            <p style="margin-top:4px;font-size:0.87rem;line-height:1.6;white-space:pre-wrap;">${t.description}</p>
+          </div>` : ''}
+          ${t.whatsapp_message ? `<div>
+            <span style="font-size:0.72rem;text-transform:uppercase;color:var(--text-muted);font-weight:600;">Mensagem WhatsApp</span>
+            <p style="margin-top:4px;font-size:0.87rem;line-height:1.6;white-space:pre-wrap;background:var(--bg);padding:10px;border-radius:8px;">${t.whatsapp_message}</p>
+          </div>` : ''}
+        </div>`;
+      document.getElementById('modal-ver-task-footer').innerHTML = `
+        <button class="btn btn-outline" onclick="closeModal('modal-ver-task')">Fechar</button>
+        ${!isConcluida ? `<button class="btn btn-outline" onclick="closeModal('modal-ver-task');editarTarefa('${t.id}')">✏️ Editar</button>` : ''}
+        ${contact.phone && t.whatsapp_message ? `<button class="btn btn-whatsapp" onclick="openWhatsApp('${contact.phone}',\`${t.whatsapp_message.replace(/`/g,"'")}\`)">💬 WhatsApp</button>` : ''}
+        ${!isConcluida ? `<button class="btn btn-success" onclick="closeModal('modal-ver-task');concluirTask('${t.id}')">✓ Concluir</button>` : ''}`;
+      openModal('modal-ver-task');
+    }
+
+    function abrirNovaTarefa() {
+      document.getElementById('modal-task-title').textContent = 'Nova Tarefa';
+      document.getElementById('task-edit-id').value  = '';
+      document.getElementById('task-title').value    = '';
+      document.getElementById('task-date').value     = todayISO();
+      document.getElementById('task-time').value     = '';
+      document.getElementById('task-tipo').value     = 'ligacao';
+      document.getElementById('task-desc').value     = '';
+      document.getElementById('task-wa').value       = '';
+      document.getElementById('task-email-reminder').checked = false;
+      document.getElementById('task-cadencia').checked       = false;
+      document.getElementById('btn-salvar-task').textContent = 'Criar Tarefa';
+      document.getElementById('cadencia-option').style.display = 'block';
+      openModal('modal-task');
+    }
+
+    function editarTarefa(id) {
+      const t = contactTasks.find(x => x.id === id);
+      if (!t) return;
+      document.getElementById('modal-task-title').textContent = 'Editar Tarefa';
+      document.getElementById('task-edit-id').value  = t.id;
+      document.getElementById('task-title').value    = t.title || '';
+      document.getElementById('task-date').value     = t.due_date || todayISO();
+      document.getElementById('task-time').value     = t.due_time ? t.due_time.slice(0,5) : '';
+      document.getElementById('task-tipo').value     = t.tipo || 'ligacao';
+      document.getElementById('task-desc').value     = t.description || '';
+      document.getElementById('task-wa').value       = t.whatsapp_message || '';
+      document.getElementById('task-email-reminder').checked = t.reminder_email || false;
+      document.getElementById('task-cadencia').checked       = false;
+      document.getElementById('btn-salvar-task').textContent = 'Salvar Alterações';
+      document.getElementById('cadencia-option').style.display = 'none';
+      openModal('modal-task');
+    }
+
+    /* ── Mini-calendário ─────────────────────────────────── */
+    function renderCalendario() {
+      const cal   = document.getElementById('mini-calendario');
+      const label = document.getElementById('cal-mes-label');
+      if (!cal || !label) return;
+
+      const ano = calendarDate.getFullYear();
+      const mes = calendarDate.getMonth();
+      label.textContent = new Date(ano, mes, 1).toLocaleDateString('pt-BR', { month:'long', year:'numeric' });
+
+      const diasMap = {};
+      contactTasks.forEach(t => {
+        if (!t.due_date) return;
+        const d = new Date(t.due_date + 'T00:00:00');
+        if (d.getFullYear() === ano && d.getMonth() === mes) {
+          const day = d.getDate();
+          if (!diasMap[day]) diasMap[day] = [];
+          diasMap[day].push(t);
+        }
+      });
+
+      const primeiroDia = new Date(ano, mes, 1).getDay();
+      const totalDias   = new Date(ano, mes+1, 0).getDate();
+      const hojeStr     = todayISO();
+      const semanas     = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+
+      let html = '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;text-align:center;">';
+      semanas.forEach(s => {
+        html += `<div style="font-size:0.68rem;font-weight:700;color:var(--text-muted);padding:4px 0;">${s}</div>`;
+      });
+      for (let i = 0; i < primeiroDia; i++) html += '<div></div>';
+      for (let d = 1; d <= totalDias; d++) {
+        const ts      = diasMap[d] || [];
+        const dataStr = `${ano}-${String(mes+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        const isHoje  = dataStr === hojeStr;
+        const hasTask = ts.length > 0;
+        const hasAtrasada  = ts.some(t => t.status === 'atrasada');
+        const hasConcluida = ts.length > 0 && ts.every(t => t.status === 'concluida');
+        const titles  = ts.map(t => t.title).join('\n');
+
+        let bg = 'transparent', color = 'var(--text)', border = 'none';
+        if (isHoje)  { bg = 'var(--primary)'; color = 'white'; }
+        if (hasTask && !isHoje) {
+          if (hasAtrasada)  { bg = 'rgba(220,53,69,.14)';  color = 'var(--danger)'; border = '1px solid rgba(220,53,69,.3)'; }
+          else if (hasConcluida) { bg = 'rgba(40,167,69,.12)'; color = 'var(--success)'; border = '1px solid rgba(40,167,69,.25)'; }
+          else              { bg = 'rgba(184,115,51,.14)'; color = 'var(--accent)';  border = '1px solid rgba(184,115,51,.3)'; }
+        }
+
+        const dot = hasTask ? `<span style="position:absolute;bottom:1px;left:50%;transform:translateX(-50%);width:4px;height:4px;border-radius:50%;background:${hasAtrasada?'var(--danger)':hasConcluida?'var(--success)':'var(--accent)'}"></span>` : '';
+        html += `<div style="position:relative;padding:6px 2px;border-radius:6px;font-size:0.78rem;cursor:${hasTask?'pointer':'default'};background:${bg};color:${color};border:${border};"
+          ${hasTask ? `title="${ts.length} tarefa(s):\n${titles}" onclick="setTaskFilter('todas')"` : ''}
+          >${d}${dot}</div>`;
+      }
+      html += '</div>';
+      html += `<div style="display:flex;gap:16px;margin-top:12px;font-size:0.7rem;color:var(--text-muted);">
+        <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--accent);margin-right:3px;"></span>Agendada</span>
+        <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--danger);margin-right:3px;"></span>Atrasada</span>
+        <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--success);margin-right:3px;"></span>Concluída</span>
+        <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--primary);margin-right:3px;"></span>Hoje</span>
+      </div>`;
+      cal.innerHTML = html;
+    }
+
+    function mudarMes(delta) {
+      calendarDate = new Date(calendarDate.getFullYear(), calendarDate.getMonth() + delta, 1);
+      renderCalendario();
+    }
+
+    /* ── Aba Proposta ────────────────────────────────────── */
+    function renderPropostas() {
+      const panel = document.getElementById('tab-proposta');
+      panel.innerHTML = `
+        <div style="display:flex;justify-content:flex-end;margin-bottom:16px;">
+          <button class="btn btn-accent" onclick="abrirNovaProposta()">+ Nova Proposta</button>
+        </div>
+        ${contactPropostas.length ? `
+        <div class="card" style="padding:0;overflow:hidden;">
+          <div class="table-responsive">
+            <table class="table">
+              <thead><tr><th>Título</th><th>Valor</th><th>Pagamento</th><th>Status</th><th>Data</th><th>Ações</th></tr></thead>
+              <tbody>${contactPropostas.map(p => {
+                const s = PROP_STATUS[p.status] || { label:p.status, color:'badge-gray' };
+                const metodo = PROP_METODO_LABELS[p.metodo_pagamento] || p.metodo_pagamento || '';
+                const parc   = p.parcelas > 1 ? ` ${p.parcelas}x` : '';
+                return `<tr>
+                  <td style="font-weight:600;">${p.titulo}</td>
+                  <td>${p.valor ? 'R$ '+Number(p.valor).toLocaleString('pt-BR',{minimumFractionDigits:2}) : ''}</td>
+                  <td>${metodo}${parc}</td>
+                  <td><span class="badge ${s.color}">${s.label}</span></td>
+                  <td style="color:var(--text-muted);font-size:0.82rem;">${formatDate(p.created_at)}</td>
+                  <td><div class="table-actions">
+                    <button class="btn btn-outline btn-sm btn-icon" onclick="editarProposta('${p.id}')">✏️</button>
+                    <button class="btn btn-primary btn-sm" onclick="gerarPDFExistente('${p.id}')">📄 PDF</button>
+                  </div></td>
+                </tr>`;
+              }).join('')}</tbody>
+            </table>
+          </div>
+        </div>` : '<div class="empty-state"><div class="empty-icon">📄</div><p>Nenhuma proposta gerada ainda</p><p style="font-size:0.82rem;color:var(--text-muted);">Clique em "+ Nova Proposta" para criar</p></div>'}`;
+    }
+
+    function abrirNovaProposta() {
+      document.getElementById('modal-proposta-title').textContent = 'Nova Proposta';
+      document.getElementById('prop-id').value       = '';
+      document.getElementById('prop-titulo').value   = `Proposta Formação IMPAR — ${contact.name}`;
+      document.getElementById('prop-valor').value    = '';
+      document.getElementById('prop-metodo').value   = 'pix';
+      document.getElementById('prop-parcelas').value = '1';
+      document.getElementById('prop-cpf').value      = contact.cpf || '';
+      document.getElementById('prop-notas').value    = '';
+      document.getElementById('prop-status').value   = 'enviada';
+      openModal('modal-proposta');
+    }
+
+    function editarProposta(id) {
+      const p = contactPropostas.find(x => x.id === id);
+      if (!p) return;
+      document.getElementById('modal-proposta-title').textContent = 'Editar Proposta';
+      document.getElementById('prop-id').value       = p.id;
+      document.getElementById('prop-titulo').value   = p.titulo || '';
+      document.getElementById('prop-valor').value    = p.valor || '';
+      document.getElementById('prop-metodo').value   = p.metodo_pagamento || 'pix';
+      document.getElementById('prop-parcelas').value = p.parcelas || 1;
+      document.getElementById('prop-cpf').value      = p.cpf || contact.cpf || '';
+      document.getElementById('prop-notas').value    = p.notas || '';
+      document.getElementById('prop-status').value   = p.status || 'enviada';
+      openModal('modal-proposta');
+    }
+
+    function gerarPDFExistente(id) {
+      const p = contactPropostas.find(x => x.id === id);
+      if (!p) return;
+      abrirJanelaProposta(
+        p.titulo, p.valor||0, p.metodo_pagamento||'pix',
+        p.parcelas||1, p.cpf||contact.cpf||'', p.notas||''
+      );
+    }
+
+    function gerarPropostaPDF() {
+      const titulo   = document.getElementById('prop-titulo').value.trim() || 'Proposta';
+      const valor    = parseFloat(document.getElementById('prop-valor').value) || 0;
+      const metodo   = document.getElementById('prop-metodo').value;
+      const parcelas = parseInt(document.getElementById('prop-parcelas').value) || 1;
+      const cpf      = document.getElementById('prop-cpf').value.trim();
+      const notas    = document.getElementById('prop-notas').value.trim();
+      abrirJanelaProposta(titulo, valor, metodo, parcelas, cpf, notas);
+    }
+
+    function abrirJanelaProposta(titulo, valor, metodo, parcelas, cpf, notas) {
+      const metodoLabel   = PROP_METODO_LABELS[metodo] || metodo;
+      const parcelasLabel = parcelas > 1
+        ? `${parcelas}x de R$ ${(valor/parcelas).toLocaleString('pt-BR',{minimumFractionDigits:2})}`
+        : 'À vista';
+      const hoje = new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'});
+
+      const win = window.open('','_blank');
+      win.document.write(`<!DOCTYPE html><html lang="pt-BR"><head>
+        <meta charset="UTF-8"><title>${titulo}</title>
+        <style>
+          *{margin:0;padding:0;box-sizing:border-box}
+          body{font-family:Arial,sans-serif;background:#fff;color:#111;padding:48px 56px;}
+          .header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #001F3F;padding-bottom:22px;margin-bottom:32px;}
+          .logo-name{font-size:24px;font-weight:800;color:#001F3F;letter-spacing:1px;}
+          .logo-sub{font-size:10px;color:#B87333;text-transform:uppercase;letter-spacing:2px;margin-top:3px;}
+          .doc-label{font-size:13px;color:#888;text-align:right;text-transform:uppercase;letter-spacing:1px;}
+          .doc-date{font-size:12px;color:#aaa;text-align:right;margin-top:3px;}
+          .section{margin-bottom:28px;}
+          .section-title{font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:#B87333;font-weight:700;margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid #f0f0f0;}
+          .field{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid #f5f5f5;font-size:14px;}
+          .field-label{color:#666;font-weight:600;}
+          .valor-box{background:#001F3F;color:white;padding:16px 24px;border-radius:10px;margin:16px 0;display:inline-block;}
+          .valor-label{font-size:11px;text-transform:uppercase;letter-spacing:1px;opacity:.7;margin-bottom:4px;}
+          .valor-num{font-size:28px;font-weight:800;}
+          .notas-box{background:#fafafa;border-left:3px solid #B87333;padding:16px;border-radius:4px;font-size:13px;line-height:1.8;white-space:pre-wrap;}
+          .assinatura{display:flex;justify-content:space-around;margin-top:60px;gap:40px;}
+          .assin-box{text-align:center;flex:1;}
+          .assin-linha{border-bottom:1px solid #333;margin-bottom:8px;height:36px;}
+          .assin-nome{font-size:12px;color:#666;}
+          .footer{margin-top:40px;border-top:1px solid #eee;padding-top:20px;text-align:center;font-size:11px;color:#aaa;line-height:1.8;}
+          .btn-print{position:fixed;top:20px;right:20px;background:#001F3F;color:white;border:none;padding:12px 24px;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;box-shadow:0 4px 12px rgba(0,31,63,.3);}
+          @media print{.btn-print{display:none;}body{padding:20px 24px;}}
+        </style>
+      </head><body>
+        <button class="btn-print" onclick="window.print()">🖨️ Imprimir / Salvar PDF</button>
+        <div class="header">
+          <div>
+            <div class="logo-name">Eva Luz Vendas</div>
+            <div class="logo-sub">Integridade que Converte e Constrói Legado</div>
+          </div>
+          <div>
+            <div class="doc-label">Proposta Comercial</div>
+            <div class="doc-date">${hoje}</div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">Dados do Cliente</div>
+          <div class="field"><span class="field-label">Nome:</span><span>${contact.name}</span></div>
+          ${cpf ? `<div class="field"><span class="field-label">CPF:</span><span>${cpf}</span></div>` : ''}
+          ${contact.email ? `<div class="field"><span class="field-label">Email:</span><span>${contact.email}</span></div>` : ''}
+          ${contact.phone ? `<div class="field"><span class="field-label">Telefone:</span><span>${formatPhone(contact.phone)}</span></div>` : ''}
+        </div>
+
+        <div class="section">
+          <div class="section-title">Produto / Serviço</div>
+          <p style="font-size:16px;font-weight:700;margin-bottom:${notas?'12px':'0'}">${titulo}</p>
+          ${notas ? `<div class="notas-box">${notas}</div>` : ''}
+        </div>
+
+        <div class="section">
+          <div class="section-title">Condições Comerciais</div>
+          <div class="valor-box">
+            <div class="valor-label">Valor total</div>
+            <div class="valor-num">R$ ${Number(valor).toLocaleString('pt-BR',{minimumFractionDigits:2})}</div>
+          </div>
+          <div class="field"><span class="field-label">Forma de Pagamento:</span><span>${metodoLabel}</span></div>
+          <div class="field"><span class="field-label">Parcelamento:</span><span>${parcelasLabel}</span></div>
+        </div>
+
+        <div class="assinatura">
+          <div class="assin-box">
+            <div class="assin-linha"></div>
+            <div class="assin-nome">${contact.name}<br>Cliente</div>
+          </div>
+          <div class="assin-box">
+            <div class="assin-linha"></div>
+            <div class="assin-nome">Eva Luz<br>Eva Luz Vendas</div>
+          </div>
+        </div>
+
+        <div class="footer">
+          Eva Luz Vendas &nbsp;|&nbsp; www.evaluzvendas.com.br &nbsp;|&nbsp; (11) 99737-7551<br>
+          "Integridade que Converte e Constrói Legado"
+        </div>
+      </body></html>`);
+      win.document.close();
+    }
+
+    async function salvarProposta() {
+      const titulo = document.getElementById('prop-titulo').value.trim();
+      const valor  = document.getElementById('prop-valor').value;
+      if (!titulo) { showToast('Título é obrigatório', 'error'); return; }
+
+      const sessionRes = await supabase.auth.getSession();
+      const userId = sessionRes?.data?.session?.user?.id || null;
+      const payload = {
+        contact_id:       contact.id,
+        titulo,
+        valor:            valor ? parseFloat(valor) : null,
+        metodo_pagamento: document.getElementById('prop-metodo').value,
+        parcelas:         parseInt(document.getElementById('prop-parcelas').value) || 1,
+        cpf:              document.getElementById('prop-cpf').value.trim() || null,
+        notas:            document.getElementById('prop-notas').value.trim() || null,
+        status:           document.getElementById('prop-status').value,
+        created_by:       userId,
+      };
+
+      const pid = document.getElementById('prop-id').value;
+      const { error } = pid
+        ? await supabase.from('propostas').update(payload).eq('id', pid)
+        : await supabase.from('propostas').insert(payload);
+
+      if (error) { showToast('Erro ao salvar proposta: ' + error.message, 'error'); return; }
+      showToast('Proposta salva!', 'success');
+      closeModal('modal-proposta');
+      await loadContact(contact.id);
+    }
+
+    /* ── Tarefas: salvar / concluir ──────────────────────── */
+    async function concluirTask(id) {
+      const { error } = await supabase.from('tasks').update({ status:'concluida' }).eq('id', id);
+      if (error) { showToast('Erro ao concluir tarefa', 'error'); return; }
+      const t = contactTasks.find(x => x.id === id);
+      if (t) t.status = 'concluida';
+      renderTarefas();
+      showToast('Tarefa concluída!', 'success');
+    }
+
+    async function salvarTarefa() {
+      const title = document.getElementById('task-title').value.trim();
+      const date  = document.getElementById('task-date').value;
+      if (!title) { showToast('Título é obrigatório', 'error'); return; }
+      if (!date)  { showToast('Data é obrigatória', 'error'); return; }
+
+      const sessionRes = await supabase.auth.getSession();
+      const userId = sessionRes?.data?.session?.user?.id || null;
+      const editId = document.getElementById('task-edit-id').value;
+      const base = {
+        contact_id:       contact.id,
+        title,
+        tipo:             document.getElementById('task-tipo').value || null,
+        description:      document.getElementById('task-desc').value.trim() || null,
+        due_time:         document.getElementById('task-time').value || null,
+        whatsapp_message: document.getElementById('task-wa').value.trim() || null,
+        reminder_email:   document.getElementById('task-email-reminder').checked,
+        created_by:       userId,
+      };
+
+      try {
+        if (editId) {
+          const { error } = await supabase.from('tasks').update({ ...base, due_date:date }).eq('id', editId);
+          if (error) { showToast('Erro ao salvar: '+error.message, 'error'); return; }
+          showToast('Tarefa atualizada!', 'success');
+        } else if (document.getElementById('task-cadencia').checked) {
+          const dates = generateCadenceDates(date);
+          const titles = ['Dia 1: Abordagem inicial','Dia 3: Envio de valor','Dia 6: Retomada gentil','Dia 10: Urgência real','Dia 15: Último contato','Dia 30: Reativação'];
+          const tasks = dates.map((d,i) => ({ ...base, title:titles[i]||`Dia ${d.day}: ${title}`, due_date:d.date, status:'pendente' }));
+          const { error } = await supabase.from('tasks').insert(tasks);
+          if (error) { showToast('Erro ao criar cadência: '+error.message, 'error'); return; }
+          showToast('Cadência IMPAR criada (6 tarefas)!', 'success');
+        } else {
+          const { error } = await supabase.from('tasks').insert({ ...base, due_date:date, status:'pendente' });
+          if (error) { showToast('Erro ao criar tarefa: '+error.message, 'error'); return; }
+          showToast('Tarefa criada!', 'success');
+        }
+        closeModal('modal-task');
+        await loadContact(contact.id);
+      } catch(err) {
+        showToast('Erro inesperado: '+err.message, 'error');
+      }
+    }
+
+    /* ── Histórico: salvar ───────────────────────────────── */
+    async function salvarHistorico() {
+      const notes = document.getElementById('hist-notes').value.trim();
+      if (!notes) { showToast('Adicione uma nota', 'error'); return; }
+      const type  = document.getElementById('hist-type').value;
+      try {
+        const sessionRes = await supabase.auth.getSession();
+        const userId = sessionRes?.data?.session?.user?.id || null;
+        const { error } = await supabase.from('contact_history').insert({
+          contact_id:contact.id, type, notes, created_by:userId
+        });
+        if (error) { showToast('Erro: '+error.message, 'error'); return; }
+        if (document.getElementById('hist-metric').checked) {
+          await supabase.from('metrics').insert({ contact_id:contact.id, type:'contato', date:todayISO(), created_by:userId });
+        }
+        showToast('Contato registrado!', 'success');
+        closeModal('modal-hist');
+        document.getElementById('hist-notes').value = '';
+        document.getElementById('hist-metric').checked = false;
+        await loadContact(contact.id);
+      } catch(err) { showToast('Erro inesperado: '+err.message, 'error'); }
+    }
+
+    /* ── Editar contato ──────────────────────────────────── */
+    function abrirEdicao() {
+      document.getElementById('modal-edit-body').innerHTML = `
+        <div class="form-row">
+          <div class="form-group"><label class="form-label">Nome <span class="required">*</span></label>
+            <input type="text" id="e-name" class="form-control" value="${contact.name||''}"></div>
+          <div class="form-group"><label class="form-label">Telefone</label>
+            <input type="tel" id="e-phone" class="form-control" value="${contact.phone||''}"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label class="form-label">Email</label>
+            <input type="email" id="e-email" class="form-control" value="${contact.email||''}"></div>
+          <div class="form-group"><label class="form-label">CPF</label>
+            <input type="text" id="e-cpf" class="form-control" placeholder="000.000.000-00" value="${contact.cpf||''}"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label class="form-label">Instagram</label>
+            <input type="text" id="e-instagram" class="form-control" value="${contact.instagram||''}"></div>
+          <div class="form-group"><label class="form-label">Facebook</label>
+            <input type="text" id="e-facebook" class="form-control" value="${contact.facebook||''}"></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Link do Emissor de Nota Fiscal</label>
+          <input type="url" id="e-nf-link" class="form-control" placeholder="https://app.omie.com.br/ ou similar" value="${contact.nf_link||''}">
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label class="form-label">Etapa do Funil</label>
+            <select id="e-stage" class="form-select">${FUNNEL_OPTIONS.map(o=>`<option value="${o.value}" ${o.value===contact.funnel_stage?'selected':''}>${o.label}</option>`).join('')}</select></div>
+          <div class="form-group"><label class="form-label">Perfil DISC</label>
+            <select id="e-disc" class="form-select"><option value="">Selecione...</option>${DISC_OPTIONS.map(o=>`<option value="${o.value}" ${o.value===contact.disc_profile?'selected':''}>${o.label}</option>`).join('')}</select></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label class="form-label">Tipo de Cliente</label>
+            <select id="e-type" class="form-select"><option value="">Selecione...</option>${CLIENT_OPTIONS.map(o=>`<option value="${o.value}" ${o.value===contact.client_type?'selected':''}>${o.label}</option>`).join('')}</select></div>
+          <div class="form-group"><label class="form-label">Sistema VAK</label>
+            <select id="e-sensory" class="form-select"><option value="">Selecione...</option>${SENSORY_OPTIONS.map(o=>`<option value="${o.value}" ${o.value===contact.sensory_system?'selected':''}>${o.label}</option>`).join('')}</select></div>
+        </div>
+        <div class="form-group"><label class="form-label">Notas</label>
+          <textarea id="e-notes" class="form-textarea" rows="3">${contact.notes||''}</textarea></div>`;
+      openModal('modal-edit');
+    }
+
+    async function salvarEdicao() {
+      const name = document.getElementById('e-name').value.trim();
+      if (!name) { showToast('Nome é obrigatório', 'error'); return; }
+      const payload = {
+        name,
+        phone:          document.getElementById('e-phone').value.trim()    || null,
+        email:          document.getElementById('e-email').value.trim()    || null,
+        cpf:            document.getElementById('e-cpf').value.trim()      || null,
+        instagram:      document.getElementById('e-instagram').value.trim()|| null,
+        facebook:       document.getElementById('e-facebook').value.trim() || null,
+        nf_link:        document.getElementById('e-nf-link').value.trim()  || null,
+        funnel_stage:   document.getElementById('e-stage').value           || 'abordagem',
+        disc_profile:   document.getElementById('e-disc').value            || null,
+        client_type:    document.getElementById('e-type').value            || null,
+        sensory_system: document.getElementById('e-sensory').value         || null,
+        notes:          document.getElementById('e-notes').value.trim()    || null,
+      };
+      const { error } = await supabase.from('contacts').update(payload).eq('id', contact.id);
+      if (error) { showToast('Erro ao salvar: '+error.message, 'error'); return; }
+      showToast('Contato atualizado!', 'success');
+      closeModal('modal-edit');
+      await loadContact(contact.id);
+    }
+
+    function showTab(tab, btn) {
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById(`tab-${tab}`).classList.add('active');
+      btn.classList.add('active');
+    }
+
+    init();
+  </script>
+</body>
+</html>

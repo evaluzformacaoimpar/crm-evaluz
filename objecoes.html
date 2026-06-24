@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Eva Luz CRM — Objeções</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <script src="https://unpkg.com/@supabase/supabase-js@2.39.3/dist/umd/supabase.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/nav.js"></script>
+</head>
+<body>
+  <div class="app-layout">
+    <aside id="sidebar" class="sidebar"></aside>
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+    <main class="main-content">
+      <header class="page-header">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <button class="hamburger" id="hamburger">☰</button>
+          <h1 class="page-title">Guia de <span>Objeções</span></h1>
+        </div>
+        <div class="search-bar">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="busca-objecao" class="form-control" placeholder="Buscar objeção...">
+        </div>
+      </header>
+      <div class="page-body">
+        <div class="card" style="margin-bottom:16px;background:var(--primary);color:white;border:none;">
+          <p style="font-size:0.9rem;line-height:1.6;">
+            Use este guia durante o contato com o cliente. Cada objeção tem uma resposta e uma técnica.
+            A porta mais aberta é a que não se força.
+          </p>
+        </div>
+        <div id="lista-objecoes"></div>
+      </div>
+    </main>
+  </div>
+  <div id="toast-container"></div>
+
+  <script>
+    const OBJECOES = [
+      { objecao: 'É muito caro', resposta: 'O preço está caro ou o valor não ficou claro? Apresente o valor antes do preço. Use âncora de preço: compare com o custo de não resolver o problema. O que você perde por mês sem essa solução?', tecnica: 'Âncora de Preço + Reframe de Valor' },
+      { objecao: 'Preciso pensar', resposta: 'O que especificamente você precisa pensar? Identifique a objeção real atrás do "pensar". Há algo que não ficou claro? Tem alguma dúvida que posso responder agora?', tecnica: 'Identificar a objeção real' },
+      { objecao: 'Preciso falar com meu esposo/esposa', resposta: 'Entendo. O que falta para você já saber sua resposta antes de falar? Antecipe o argumento antes da consulta. Prepare o cliente para vender internamente.', tecnica: 'Antecipação do argumento' },
+      { objecao: 'Já tenho fornecedor / já faço isso', resposta: 'O que ele oferece que faz você ficar? Descubra o que falta no fornecedor atual. Onde você ainda sente que falta algo no seu resultado?', tecnica: 'Descoberta de lacuna' },
+      { objecao: 'Não tenho verba agora', resposta: 'É uma questão de prioridade ou de prazo? Ofereça parcelamento, prazo ou entrada menor. Mostre o custo de adiar: o que você perde cada mês sem isso?', tecnica: 'Reframe de prioridade + opções de pagamento' },
+      { objecao: 'Preciso pesquisar mais', resposta: 'O que você ainda não sabe e precisa saber? Responda na hora. Elimine a necessidade de pesquisa. Tenha dados, depoimentos e provas prontos.', tecnica: 'Eliminar a necessidade de pesquisa' },
+      { objecao: 'Não é o momento certo', resposta: 'O que mudaria para ser o momento certo? Ajude a construir o momento certo junto. Mostre que o momento certo é agora, antes que o problema custe mais.', tecnica: 'Construção do momento certo' },
+      { objecao: 'Me manda uma proposta', resposta: 'Claro. Para personalizar, me diz o que é prioridade para você. Não mande sem antes qualificar o cliente. A proposta deve ser construída com ele, não para ele.', tecnica: 'Qualificação antes da proposta' },
+      { objecao: 'Vou deixar para o próximo mês', resposta: 'O que muda no próximo mês? Mostre o custo de esperar. Cada mês sem a solução é mais prejuízo acumulado.', tecnica: 'Custo da demora' },
+      { objecao: 'Seus concorrentes são mais baratos', resposta: 'Mais barato no preço ou no custo total? Diferencie investimento de gasto. O que está incluído na solução de cada um? O que você realmente está comparando?', tecnica: 'Diferenciação de valor x preço' },
+      { objecao: 'Não preciso disso agora', resposta: 'Você concorda que [dor que ele mencionou] já está te custando? Conecte a necessidade urgente que ele mesmo revelou. A dor já existe, só ainda não foi resolvida.', tecnica: 'Ativação da dor existente' },
+      { objecao: 'Tenho medo de não ter resultado', resposta: 'O que te daria segurança para começar? Ofereça garantia, depoimento ou resultado parcial. Mostre o que já foi entregue para pessoas na mesma situação.', tecnica: 'Garantia + Prova Social' },
+      { objecao: 'Vi reclamações na internet', resposta: 'O que especificamente você leu? Posso te explicar o contexto. Seja transparente. Não defenda, esclareça. Mostre sua postura de integridade.', tecnica: 'Transparência + Esclarecimento' },
+      { objecao: 'Meu chefe não vai aprovar', resposta: 'Você já tem uma posição pessoal sobre isso? Prepare o cliente para vender internamente. Dê a ele os argumentos que ele vai usar com o chefe.', tecnica: 'Preparar o cliente para vender internamente' },
+      { objecao: 'Estou satisfeito como está', resposta: 'O que seria preciso mudar para você querer ir além? Plante a semente. Mantenha o relacionamento. O mercado vai mudar e você quer ser a primeira pessoa que ele lembra.', tecnica: 'Semente + Relacionamento de longo prazo' },
+    ];
+
+    async function init() {
+      await checkSession();
+      await injectNav('objecoes');
+      render(OBJECOES);
+    }
+
+    function render(list) {
+      const el = document.getElementById('lista-objecoes');
+      if (!list.length) {
+        el.innerHTML = '<div class="empty-state"><p>Nenhuma objeção encontrada</p></div>';
+        return;
+      }
+      el.innerHTML = list.map((o, i) => `
+        <div class="accordion-item">
+          <button class="accordion-header" onclick="toggleAccordion(this)" id="acc-${i}">
+            <span>💬 ${o.objecao}</span>
+            <span class="accordion-chevron">▼</span>
+          </button>
+          <div class="accordion-body" id="body-${i}">
+            <p style="margin-bottom:10px;line-height:1.65;">${o.resposta}</p>
+            <div class="accordion-technique">Técnica: ${o.tecnica}</div>
+          </div>
+        </div>`).join('');
+    }
+
+    function toggleAccordion(btn) {
+      const body = btn.nextElementSibling;
+      const isOpen = body.classList.contains('open');
+      document.querySelectorAll('.accordion-body').forEach(b => b.classList.remove('open'));
+      document.querySelectorAll('.accordion-header').forEach(b => b.classList.remove('open'));
+      if (!isOpen) { body.classList.add('open'); btn.classList.add('open'); }
+    }
+
+    document.getElementById('busca-objecao').addEventListener('input', function() {
+      const term = this.value.toLowerCase();
+      const filtered = OBJECOES.filter(o =>
+        o.objecao.toLowerCase().includes(term) ||
+        o.resposta.toLowerCase().includes(term) ||
+        o.tecnica.toLowerCase().includes(term)
+      );
+      render(filtered);
+    });
+
+    init();
+  </script>
+</body>
+</html>

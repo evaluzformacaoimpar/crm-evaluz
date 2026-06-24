@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Eva Luz CRM — Tarefas</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <script src="https://unpkg.com/@supabase/supabase-js@2.39.3/dist/umd/supabase.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/nav.js"></script>
+</head>
+<body>
+  <div class="app-layout">
+    <aside id="sidebar" class="sidebar"></aside>
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+    <main class="main-content">
+      <header class="page-header">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <button class="hamburger" id="hamburger">☰</button>
+          <h1 class="page-title">Tarefas <span>/ Cadência</span></h1>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center;">
+          <select id="filtro-status" class="form-select" style="width:auto;">
+            <option value="">Todos os status</option>
+            <option value="pendente">Pendentes</option>
+            <option value="atrasada">Atrasadas</option>
+            <option value="concluida">Concluídas</option>
+          </select>
+        </div>
+      </header>
+      <div class="page-body">
+        <div id="tasks-atrasadas" class="tasks-section" style="display:none;">
+          <div class="tasks-section-header">
+            <span style="font-size:1rem;">⚠️</span>
+            <span class="tasks-section-title" style="color:var(--danger);">Atrasadas</span>
+            <span id="count-atrasadas" class="badge badge-danger"></span>
+          </div>
+          <div id="list-atrasadas"></div>
+        </div>
+        <div id="tasks-hoje" class="tasks-section" style="display:none;">
+          <div class="tasks-section-header">
+            <span style="font-size:1rem;">📅</span>
+            <span class="tasks-section-title" style="color:var(--accent);">Para Hoje</span>
+            <span id="count-hoje" class="badge badge-accent" style="background:rgba(184,115,51,0.12);color:var(--accent-dark);"></span>
+          </div>
+          <div id="list-hoje"></div>
+        </div>
+        <div id="tasks-proximos" class="tasks-section">
+          <div class="tasks-section-header">
+            <span style="font-size:1rem;">🗓️</span>
+            <span class="tasks-section-title">Próximos 7 Dias</span>
+            <span id="count-proximos" class="badge badge-gray"></span>
+          </div>
+          <div id="list-proximos"></div>
+        </div>
+        <div class="tasks-section">
+          <div class="tasks-section-header">
+            <span style="font-size:1rem;">📋</span>
+            <span class="tasks-section-title">Todas as Tarefas</span>
+            <span id="count-todas" class="badge badge-gray"></span>
+          </div>
+          <div id="list-todas"></div>
+        </div>
+      </div>
+    </main>
+  </div>
+  <div id="toast-container"></div>
+
+  <script>
+    let allTasks = [];
+    const today = todayISO();
+    const in7   = new Date(); in7.setDate(in7.getDate() + 7);
+    const in7str = in7.toISOString().split('T')[0];
+
+    async function init() {
+      await checkSession();
+      await injectNav('tarefas');
+      await loadTasks();
+      await checkEmailReminders();
+    }
+
+    async function loadTasks() {
+      const filterStatus = document.getElementById('filtro-status').value;
+      let query = supabase.from('tasks').select('*, contacts(id, name, phone)').order('due_date', { ascending: true });
+      if (filterStatus) query = query.eq('status', filterStatus);
+      const { data } = await query;
+      allTasks = data || [];
+      renderAll();
+    }
+
+    function renderAll() {
+      const atrasadas = allTasks.filter(t => t.status === 'atrasada');
+      const hoje      = allTasks.filter(t => t.status === 'pendente' && t.due_date === today);
+      const proximos  = allTasks.filter(t => t.status === 'pendente' && t.due_date > today && t.due_date <= in7str);
+      const todas     = allTasks;
+
+      toggleSection('tasks-atrasadas', atrasadas.length > 0);
+      toggleSection('tasks-hoje',      hoje.length > 0);
+      document.getElementById('count-atrasadas').textContent = atrasadas.length;
+      document.getElementById('count-hoje').textContent      = hoje.length;
+      document.getElementById('count-proximos').textContent  = proximos.length;
+      document.getElementById('count-todas').textContent     = todas.length;
+
+      document.getElementById('list-atrasadas').innerHTML = renderTaskList(atrasadas, 'atrasada');
+      document.getElementById('list-hoje').innerHTML      = renderTaskList(hoje, 'hoje');
+      document.getElementById('list-proximos').innerHTML  = renderTaskList(proximos);
+      document.getElementById('list-todas').innerHTML     = renderTaskList(todas);
+    }
+
+    function toggleSection(id, show) {
+      document.getElementById(id).style.display = show ? 'block' : 'none';
+    }
+
+    function renderTaskList(tasks, cls = '') {
+      if (!tasks.length) return '<div class="empty-state" style="padding:20px 0;"><p>Nenhuma tarefa nesta categoria</p></div>';
+      return tasks.map(t => {
+        const isConcluida = t.status === 'concluida';
+        return `
+          <div class="task-item ${cls} ${isConcluida ? 'concluida' : ''}">
+            <div class="task-check ${isConcluida ? 'done' : ''}" onclick="${isConcluida ? '' : `concluirTask('${t.id}')`}">
+              ${isConcluida ? '✓' : ''}
+            </div>
+            <div class="task-body">
+              <div class="task-title">${t.title}</div>
+              <div class="task-meta">
+                ${t.contacts?.name ? `<a href="contato.html?id=${t.contacts.id}" style="color:var(--accent);font-weight:600;">👤 ${t.contacts.name}</a>` : ''}
+                <span>📅 ${formatDate(t.due_date)}${t.due_time ? ' às ' + t.due_time.slice(0,5) : ''}</span>
+                <span class="badge ${t.status === 'atrasada' ? 'badge-danger' : t.status === 'concluida' ? 'badge-success' : 'badge-gray'}" style="font-size:0.68rem;">
+                  ${{ pendente:'Pendente', atrasada:'Atrasada', concluida:'Concluída' }[t.status]}
+                </span>
+              </div>
+              ${t.description ? `<p style="font-size:0.8rem;color:var(--text-muted);margin-top:4px;">${t.description}</p>` : ''}
+            </div>
+            <div class="task-actions">
+              ${t.whatsapp_message && t.contacts?.phone ? `
+                <button class="btn btn-whatsapp btn-sm btn-icon" title="Abrir WhatsApp"
+                  onclick="openWhatsApp('${t.contacts.phone}', \`${t.whatsapp_message.replace(/`/g,"'")}\`)">💬</button>` : ''}
+              ${!isConcluida ? `<button class="btn btn-success btn-sm btn-icon" onclick="concluirTask('${t.id}')" title="Concluir">✓</button>` : ''}
+            </div>
+          </div>`;
+      }).join('');
+    }
+
+    async function concluirTask(id) {
+      const { error } = await supabase.from('tasks').update({ status: 'concluida' }).eq('id', id);
+      if (error) { showToast('Erro ao concluir tarefa', 'error'); return; }
+      const t = allTasks.find(x => x.id === id);
+      if (t) t.status = 'concluida';
+      renderAll();
+      showToast('Tarefa concluída!', 'success');
+    }
+
+    async function checkEmailReminders() {
+      const alreadySent = sessionStorage.getItem('email_reminders_sent');
+      if (alreadySent) return;
+      const user = getUser();
+      if (!user?.role) return;
+      const { data: session } = await supabase.auth.getSession();
+      const email = session?.session?.user?.email;
+      if (!email) return;
+      const tasksHoje = allTasks.filter(t =>
+        t.status === 'pendente' &&
+        t.due_date === today &&
+        t.reminder_email === true
+      );
+      for (const t of tasksHoje) {
+        await sendEmailReminder(email, user.name, t.contacts?.name || 'Contato', t.title, t.due_date);
+      }
+      sessionStorage.setItem('email_reminders_sent', '1');
+      if (tasksHoje.length > 0) {
+        showToast(`${tasksHoje.length} lembrete(s) enviado(s) por email`, 'info');
+      }
+    }
+
+    document.getElementById('filtro-status').addEventListener('change', loadTasks);
+
+    init();
+  </script>
+</body>
+</html>

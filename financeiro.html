@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Eva Luz CRM — Financeiro</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <script src="https://unpkg.com/@supabase/supabase-js@2.39.3/dist/umd/supabase.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/nav.js"></script>
+  <style>
+    .fin-cards { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:24px; }
+    .fin-card  { background:var(--card-bg); border:1px solid var(--border); border-radius:12px; padding:20px; }
+    .fin-card-label { font-size:0.75rem; text-transform:uppercase; letter-spacing:.5px; color:var(--text-muted); font-weight:600; margin-bottom:6px; }
+    .fin-card-value { font-size:1.6rem; font-weight:800; }
+    .fin-card.receber .fin-card-value { color:var(--success); }
+    .fin-card.pagar   .fin-card-value { color:var(--danger); }
+    .fin-card.saldo   .fin-card-value { color:var(--primary); }
+    .fin-card-sub { font-size:0.75rem; color:var(--text-muted); margin-top:4px; }
+    .status-pendente { background:rgba(255,193,7,.15); color:#856404; border:1px solid rgba(255,193,7,.3); border-radius:6px; padding:2px 8px; font-size:0.75rem; font-weight:600; }
+    .status-pago     { background:rgba(40,167,69,.12); color:var(--success); border:1px solid rgba(40,167,69,.25); border-radius:6px; padding:2px 8px; font-size:0.75rem; font-weight:600; }
+    .status-vencido  { background:rgba(220,53,69,.12); color:var(--danger); border:1px solid rgba(220,53,69,.25); border-radius:6px; padding:2px 8px; font-size:0.75rem; font-weight:600; }
+    .status-cancelado { background:rgba(108,117,125,.1); color:var(--text-muted); border:1px solid rgba(108,117,125,.2); border-radius:6px; padding:2px 8px; font-size:0.75rem; font-weight:600; }
+    .tipo-receber { color:var(--success); font-weight:700; }
+    .tipo-pagar   { color:var(--danger);  font-weight:700; }
+    @media(max-width:600px){ .fin-cards { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+  <div class="app-layout">
+    <aside id="sidebar" class="sidebar"></aside>
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+    <main class="main-content">
+      <header class="page-header">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <button class="hamburger" id="hamburger">☰</button>
+          <h1 class="page-title">Financeiro <span>/ Fluxo de Caixa</span></h1>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-outline btn-sm" onclick="exportarCSV()">⬇️ Exportar</button>
+          <button class="btn btn-accent" onclick="abrirNovo()">+ Novo Lançamento</button>
+        </div>
+      </header>
+
+      <div class="page-body">
+        <!-- Cards resumo -->
+        <div class="fin-cards">
+          <div class="fin-card receber">
+            <div class="fin-card-label">A Receber</div>
+            <div class="fin-card-value" id="total-receber">R$ 0,00</div>
+            <div class="fin-card-sub" id="count-receber">0 lançamentos</div>
+          </div>
+          <div class="fin-card pagar">
+            <div class="fin-card-label">A Pagar</div>
+            <div class="fin-card-value" id="total-pagar">R$ 0,00</div>
+            <div class="fin-card-sub" id="count-pagar">0 lançamentos</div>
+          </div>
+          <div class="fin-card saldo">
+            <div class="fin-card-label">Saldo Projetado</div>
+            <div class="fin-card-value" id="saldo">R$ 0,00</div>
+            <div class="fin-card-sub">Receber menos Pagar</div>
+          </div>
+        </div>
+
+        <!-- Filtros -->
+        <div class="kanban-toolbar" style="flex-wrap:wrap;">
+          <select id="f-tipo" class="form-select" style="width:auto;" onchange="renderTable()">
+            <option value="">Tipo: Todos</option>
+            <option value="receber">A Receber</option>
+            <option value="pagar">A Pagar</option>
+          </select>
+          <select id="f-status" class="form-select" style="width:auto;" onchange="renderTable()">
+            <option value="">Status: Todos</option>
+            <option value="pendente">Pendente</option>
+            <option value="pago">Pago</option>
+            <option value="vencido">Vencido</option>
+            <option value="cancelado">Cancelado</option>
+          </select>
+          <select id="f-metodo" class="form-select" style="width:auto;" onchange="renderTable()">
+            <option value="">Pagamento: Todos</option>
+            <option value="pix">PIX</option>
+            <option value="cartao_credito">Cartão de Crédito</option>
+            <option value="cartao_debito">Cartão de Débito</option>
+            <option value="boleto">Boleto</option>
+            <option value="dinheiro">Dinheiro</option>
+            <option value="transferencia">Transferência</option>
+          </select>
+          <input type="month" id="f-mes" class="form-control" style="width:auto;" onchange="renderTable()">
+          <button class="btn btn-ghost btn-sm" onclick="limparFiltros()">Limpar filtros</button>
+        </div>
+
+        <!-- Tabela -->
+        <div class="card" style="padding:0;overflow:hidden;margin-top:16px;">
+          <div class="table-responsive">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Vencimento</th>
+                  <th>Descrição</th>
+                  <th>Tipo</th>
+                  <th>Valor</th>
+                  <th>Pagamento</th>
+                  <th>Status</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody id="fin-tbody">
+                <tr><td colspan="7" style="text-align:center;color:var(--text-muted);">Carregando...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Modal Novo / Editar lançamento -->
+  <div id="modal-fin" class="modal-overlay" style="display:none;" onclick="closeModalOnOverlay(event)">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modal-fin-title">Novo Lançamento</h3>
+        <button class="btn btn-ghost btn-icon" onclick="closeModal('modal-fin')">✕</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="fin-id">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Tipo <span class="required">*</span></label>
+            <select id="fin-tipo" class="form-select">
+              <option value="receber">Receber</option>
+              <option value="pagar">Pagar</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Status</label>
+            <select id="fin-status" class="form-select">
+              <option value="pendente">Pendente</option>
+              <option value="pago">Pago</option>
+              <option value="vencido">Vencido</option>
+              <option value="cancelado">Cancelado</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Descrição <span class="required">*</span></label>
+          <input type="text" id="fin-desc" class="form-control" placeholder="Ex: Mentoria IMPAR — João Silva">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Valor (R$) <span class="required">*</span></label>
+            <input type="number" id="fin-valor" class="form-control" placeholder="0.00" step="0.01" min="0">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Data de Vencimento <span class="required">*</span></label>
+            <input type="date" id="fin-venc" class="form-control">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Forma de Pagamento</label>
+            <select id="fin-metodo" class="form-select">
+              <option value="">Selecione...</option>
+              <option value="pix">PIX</option>
+              <option value="cartao_credito">Cartão de Crédito</option>
+              <option value="cartao_debito">Cartão de Débito</option>
+              <option value="boleto">Boleto</option>
+              <option value="dinheiro">Dinheiro</option>
+              <option value="transferencia">Transferência</option>
+              <option value="outro">Outro</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Data de Pagamento</label>
+            <input type="date" id="fin-pago-em" class="form-control">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Parcelas</label>
+            <input type="number" id="fin-parcelas" class="form-control" value="1" min="1">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Parcela Atual</label>
+            <input type="number" id="fin-parc-atual" class="form-control" value="1" min="1">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Categoria</label>
+          <input type="text" id="fin-cat" class="form-control" placeholder="Ex: Mentoria, Despesa Operacional, Marketing...">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Observações</label>
+          <textarea id="fin-notas" class="form-textarea" rows="2" placeholder="Observações adicionais..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeModal('modal-fin')">Cancelar</button>
+        <button class="btn btn-accent" onclick="salvarLancamento()">Salvar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal confirmar exclusão -->
+  <div id="modal-del-fin" class="modal-overlay" style="display:none;" onclick="closeModalOnOverlay(event)">
+    <div class="modal" style="max-width:380px;">
+      <div class="modal-header">
+        <h3 class="modal-title">Confirmar Exclusão</h3>
+        <button class="btn btn-ghost btn-icon" onclick="closeModal('modal-del-fin')">✕</button>
+      </div>
+      <div class="modal-body">
+        <p>Excluir este lançamento: <strong id="del-fin-desc"></strong>?</p>
+        <p style="font-size:0.82rem;color:var(--danger);margin-top:8px;">Essa ação não pode ser desfeita.</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeModal('modal-del-fin')">Cancelar</button>
+        <button class="btn btn-danger" onclick="confirmarDelFin()">Excluir</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+
+  <script>
+    let allLancamentos = [];
+    let delFinId       = null;
+
+    const METODO_LABELS = {
+      pix:'PIX', cartao_credito:'Cartão Crédito', cartao_debito:'Cartão Débito',
+      boleto:'Boleto', dinheiro:'Dinheiro', transferencia:'Transferência', outro:'Outro'
+    };
+
+    async function init() {
+      await checkSession();
+      await injectNav('financeiro');
+      await loadLancamentos();
+    }
+
+    async function loadLancamentos() {
+      const { data, error } = await supabase
+        .from('financeiro')
+        .select('*')
+        .order('data_vencimento', { ascending: true });
+      if (error) {
+        if (error.message.includes('does not exist')) {
+          document.getElementById('fin-tbody').innerHTML =
+            '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);">Execute o arquivo schema_updates.sql no Supabase para habilitar o módulo financeiro.</td></tr>';
+          return;
+        }
+        showToast('Erro ao carregar lançamentos: ' + error.message, 'error');
+        return;
+      }
+      allLancamentos = data || [];
+      renderSummary();
+      renderTable();
+    }
+
+    function getFiltered() {
+      const tipo   = document.getElementById('f-tipo').value;
+      const status = document.getElementById('f-status').value;
+      const metodo = document.getElementById('f-metodo').value;
+      const mes    = document.getElementById('f-mes').value;
+      return allLancamentos.filter(l => {
+        if (tipo   && l.tipo              !== tipo)   return false;
+        if (status && l.status            !== status) return false;
+        if (metodo && l.metodo_pagamento  !== metodo) return false;
+        if (mes) {
+          const lMes = l.data_vencimento ? l.data_vencimento.slice(0,7) : '';
+          if (lMes !== mes) return false;
+        }
+        return true;
+      });
+    }
+
+    function renderSummary() {
+      const pendentes = allLancamentos.filter(l => l.status === 'pendente' || l.status === 'vencido');
+      const receber = pendentes.filter(l => l.tipo === 'receber').reduce((s,l) => s + (parseFloat(l.valor)||0), 0);
+      const pagar   = pendentes.filter(l => l.tipo === 'pagar').reduce((s,l)   => s + (parseFloat(l.valor)||0), 0);
+      const saldo   = receber - pagar;
+      const cntR    = pendentes.filter(l => l.tipo === 'receber').length;
+      const cntP    = pendentes.filter(l => l.tipo === 'pagar').length;
+
+      document.getElementById('total-receber').textContent = 'R$ ' + receber.toLocaleString('pt-BR',{minimumFractionDigits:2});
+      document.getElementById('total-pagar').textContent   = 'R$ ' + pagar.toLocaleString('pt-BR',{minimumFractionDigits:2});
+      document.getElementById('saldo').textContent         = (saldo<0?'-':'') + 'R$ ' + Math.abs(saldo).toLocaleString('pt-BR',{minimumFractionDigits:2});
+      document.getElementById('count-receber').textContent = cntR + ' lançamentos pendentes';
+      document.getElementById('count-pagar').textContent   = cntP + ' lançamentos pendentes';
+      document.getElementById('saldo').style.color = saldo >= 0 ? 'var(--success)' : 'var(--danger)';
+    }
+
+    function renderTable() {
+      const filtered = getFiltered();
+      const tbody = document.getElementById('fin-tbody');
+      if (!filtered.length) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);">Nenhum lançamento encontrado</td></tr>';
+        return;
+      }
+      tbody.innerHTML = filtered.map(l => {
+        const metodoLabel = METODO_LABELS[l.metodo_pagamento] || l.metodo_pagamento || '';
+        const parc = l.parcelas > 1 ? ` (${l.parcela_atual}/${l.parcelas})` : '';
+        const hoje = todayISO();
+        const vencido = l.status === 'pendente' && l.data_vencimento < hoje;
+        return `<tr ${vencido ? 'style="background:rgba(220,53,69,.04);"' : ''}>
+          <td style="${vencido?'color:var(--danger);font-weight:600;':''}">${formatDate(l.data_vencimento)}</td>
+          <td>
+            <span style="font-weight:600;">${l.descricao}</span>
+            ${l.categoria ? `<br><span style="font-size:0.75rem;color:var(--text-muted);">${l.categoria}</span>` : ''}
+            ${l.notas     ? `<br><span style="font-size:0.72rem;color:var(--text-muted);">${l.notas}</span>` : ''}
+          </td>
+          <td><span class="${l.tipo === 'receber' ? 'tipo-receber' : 'tipo-pagar'}">${l.tipo === 'receber' ? '↑ Receber' : '↓ Pagar'}</span></td>
+          <td style="font-weight:700;">R$ ${Number(l.valor).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
+          <td>${metodoLabel}${parc}</td>
+          <td><span class="status-${vencido?'vencido':l.status}">${vencido?'Vencido':l.status.charAt(0).toUpperCase()+l.status.slice(1)}</span></td>
+          <td>
+            <div class="table-actions">
+              ${l.status !== 'pago' && l.status !== 'cancelado' ? `<button class="btn btn-success btn-sm" onclick="marcarPago('${l.id}')">✓ Pago</button>` : ''}
+              <button class="btn btn-outline btn-sm btn-icon" onclick="editarLancamento('${l.id}')">✏️</button>
+              <button class="btn btn-danger btn-sm btn-icon" onclick="pedirDelFin('${l.id}','${l.descricao.replace(/'/g,"\\'")}')">🗑️</button>
+            </div>
+          </td>
+        </tr>`;
+      }).join('');
+    }
+
+    function limparFiltros() {
+      document.getElementById('f-tipo').value   = '';
+      document.getElementById('f-status').value = '';
+      document.getElementById('f-metodo').value = '';
+      document.getElementById('f-mes').value    = '';
+      renderTable();
+    }
+
+    function abrirNovo() {
+      document.getElementById('modal-fin-title').textContent = 'Novo Lançamento';
+      document.getElementById('fin-id').value       = '';
+      document.getElementById('fin-tipo').value     = 'receber';
+      document.getElementById('fin-status').value   = 'pendente';
+      document.getElementById('fin-desc').value     = '';
+      document.getElementById('fin-valor').value    = '';
+      document.getElementById('fin-venc').value     = todayISO();
+      document.getElementById('fin-metodo').value   = '';
+      document.getElementById('fin-pago-em').value  = '';
+      document.getElementById('fin-parcelas').value  = '1';
+      document.getElementById('fin-parc-atual').value = '1';
+      document.getElementById('fin-cat').value      = '';
+      document.getElementById('fin-notas').value    = '';
+      openModal('modal-fin');
+    }
+
+    function editarLancamento(id) {
+      const l = allLancamentos.find(x => x.id === id);
+      if (!l) return;
+      document.getElementById('modal-fin-title').textContent = 'Editar Lançamento';
+      document.getElementById('fin-id').value       = l.id;
+      document.getElementById('fin-tipo').value     = l.tipo;
+      document.getElementById('fin-status').value   = l.status;
+      document.getElementById('fin-desc').value     = l.descricao || '';
+      document.getElementById('fin-valor').value    = l.valor || '';
+      document.getElementById('fin-venc').value     = l.data_vencimento || '';
+      document.getElementById('fin-metodo').value   = l.metodo_pagamento || '';
+      document.getElementById('fin-pago-em').value  = l.data_pagamento || '';
+      document.getElementById('fin-parcelas').value  = l.parcelas || 1;
+      document.getElementById('fin-parc-atual').value = l.parcela_atual || 1;
+      document.getElementById('fin-cat').value      = l.categoria || '';
+      document.getElementById('fin-notas').value    = l.notas || '';
+      openModal('modal-fin');
+    }
+
+    async function marcarPago(id) {
+      const { error } = await supabase.from('financeiro')
+        .update({ status:'pago', data_pagamento: todayISO() }).eq('id', id);
+      if (error) { showToast('Erro ao marcar como pago', 'error'); return; }
+      const l = allLancamentos.find(x => x.id === id);
+      if (l) { l.status = 'pago'; l.data_pagamento = todayISO(); }
+      renderSummary();
+      renderTable();
+      showToast('Marcado como pago!', 'success');
+    }
+
+    async function salvarLancamento() {
+      const desc  = document.getElementById('fin-desc').value.trim();
+      const valor = document.getElementById('fin-valor').value;
+      const venc  = document.getElementById('fin-venc').value;
+      if (!desc)  { showToast('Descrição é obrigatória', 'error'); return; }
+      if (!valor) { showToast('Valor é obrigatório', 'error'); return; }
+      if (!venc)  { showToast('Data de vencimento é obrigatória', 'error'); return; }
+
+      const sessionRes = await supabase.auth.getSession();
+      const userId = sessionRes?.data?.session?.user?.id || null;
+      const payload = {
+        tipo:              document.getElementById('fin-tipo').value,
+        status:            document.getElementById('fin-status').value,
+        descricao:         desc,
+        valor:             parseFloat(valor),
+        data_vencimento:   venc,
+        metodo_pagamento:  document.getElementById('fin-metodo').value || null,
+        data_pagamento:    document.getElementById('fin-pago-em').value || null,
+        parcelas:          parseInt(document.getElementById('fin-parcelas').value) || 1,
+        parcela_atual:     parseInt(document.getElementById('fin-parc-atual').value) || 1,
+        categoria:         document.getElementById('fin-cat').value.trim() || null,
+        notas:             document.getElementById('fin-notas').value.trim() || null,
+        created_by:        userId,
+      };
+
+      const fid = document.getElementById('fin-id').value;
+      const { error } = fid
+        ? await supabase.from('financeiro').update(payload).eq('id', fid)
+        : await supabase.from('financeiro').insert(payload);
+      if (error) { showToast('Erro ao salvar: ' + error.message, 'error'); return; }
+      showToast('Lançamento salvo!', 'success');
+      closeModal('modal-fin');
+      await loadLancamentos();
+    }
+
+    function pedirDelFin(id, desc) {
+      delFinId = id;
+      document.getElementById('del-fin-desc').textContent = desc;
+      openModal('modal-del-fin');
+    }
+
+    async function confirmarDelFin() {
+      if (!delFinId) return;
+      const { error } = await supabase.from('financeiro').delete().eq('id', delFinId);
+      if (error) { showToast('Erro ao excluir', 'error'); return; }
+      showToast('Lançamento excluído', 'success');
+      closeModal('modal-del-fin');
+      allLancamentos = allLancamentos.filter(x => x.id !== delFinId);
+      delFinId = null;
+      renderSummary();
+      renderTable();
+    }
+
+    function exportarCSV() {
+      const filtered = getFiltered();
+      if (!filtered.length) { showToast('Nenhum lançamento para exportar', 'error'); return; }
+
+      const header = ['Vencimento','Descricao','Tipo','Valor','Categoria','Metodo Pagamento','Parcelas','Parcela Atual','Status','Data Pagamento','Observacoes'];
+      const rows = filtered.map(l => [
+        l.data_vencimento || '',
+        l.descricao       || '',
+        l.tipo            || '',
+        l.valor           || '0',
+        l.categoria       || '',
+        METODO_LABELS[l.metodo_pagamento] || l.metodo_pagamento || '',
+        l.parcelas        || '1',
+        l.parcela_atual   || '1',
+        l.status          || '',
+        l.data_pagamento  || '',
+        l.notas           || '',
+      ].map(v => '"' + String(v).replace(/"/g,'""') + '"').join(','));
+
+      const csv  = '﻿' + header.map(h=>'"'+h+'"').join(',') + '\n' + rows.join('\n');
+      const blob = new Blob([csv], { type:'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href  = URL.createObjectURL(blob);
+      link.download = 'financeiro_evaluz_' + todayISO() + '.csv';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      showToast('Exportado com sucesso!', 'success');
+    }
+
+    init();
+  </script>
+</body>
+</html>
