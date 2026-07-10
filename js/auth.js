@@ -75,7 +75,7 @@ async function requireAdmin() {
   const result = await checkSession();
   if (!result) return;
   if (result.profile?.role !== 'admin') {
-    window.location.href = 'dashboard.html';
+    window.location.href = 'painel.html';
   }
   return result;
 }
