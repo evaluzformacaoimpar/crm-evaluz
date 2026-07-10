@@ -44,7 +44,7 @@
       if (!supabase) return;
       const res = await supabase.auth.getSession();
       const session = res?.data?.session || null;
-      if (session) window.location.href = 'dashboard.html';
+      if (session) window.location.href = 'painel.html';
     })();
 
     document.getElementById('login-form').addEventListener('submit', async (e) => {
@@ -79,7 +79,7 @@
         }
 
         await getProfile(data.user.id);
-        window.location.href = 'dashboard.html';
+        window.location.href = 'painel.html';
 
       } catch (err) {
         showToast('Erro de conexão. Verifique sua internet e tente novamente.', 'error');
