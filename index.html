@@ -38,12 +38,13 @@
   <div id="toast-container"></div>
 
   <script src="js/utils.js"></script>
+  <script src="js/auth.js"></script>
   <script>
     (async () => {
       if (!supabase) return;
       const res = await supabase.auth.getSession();
       const session = res?.data?.session || null;
-      if (session) window.location.href = 'painel.html';
+      if (session) window.location.href = 'dashboard.html';
     })();
 
     document.getElementById('login-form').addEventListener('submit', async (e) => {
@@ -77,14 +78,8 @@
           return;
         }
 
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', data.user.id)
-          .single();
-
-        if (profile) localStorage.setItem('crm_user', JSON.stringify(profile));
-        window.location.href = 'painel.html';
+        await getProfile(data.user.id);
+        window.location.href = 'dashboard.html';
 
       } catch (err) {
         showToast('Erro de conexão. Verifique sua internet e tente novamente.', 'error');

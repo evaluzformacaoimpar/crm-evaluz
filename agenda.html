@@ -36,8 +36,11 @@
           </div>
         </div>
 
-        <!-- Container da agenda -->
-        <div id="agenda-container"></div>
+        <!-- Container da agenda + painel lateral de cadência -->
+        <div class="agenda-layout">
+          <div id="agenda-container"></div>
+          <aside id="cadencia-lateral" class="cadence-sidebar"></aside>
+        </div>
 
       </div>
     </main>
@@ -78,6 +81,59 @@
 
       allTasks = result.data || [];
       render();
+      await loadCadenceSidebar();
+    }
+
+    async function loadCadenceSidebar() {
+      var aside = document.getElementById('cadencia-lateral');
+      if (!aside) return;
+
+      var contactIds = [...new Set(allTasks.map(function(t) { return t.contact_id; }).filter(Boolean))];
+      if (!contactIds.length) {
+        aside.innerHTML = '<div class="cadence-sidebar-title">Fluxo de Cadência</div><div class="empty-state" style="padding:20px 8px;"><p style="font-size:0.82rem;">Nenhum cliente com compromisso agendado</p></div>';
+        return;
+      }
+
+      var result = await supabase
+        .from('tasks')
+        .select('contact_id, title, status, due_date, contacts(id, name)')
+        .in('contact_id', contactIds)
+        .ilike('title', 'Dia %');
+
+      if (result.error) { aside.innerHTML = ''; return; }
+
+      var byContact = {};
+      (result.data || []).forEach(function(t) {
+        if (!t.contacts) return;
+        if (!byContact[t.contact_id]) byContact[t.contact_id] = { contact: t.contacts, tasks: [] };
+        byContact[t.contact_id].tasks.push(t);
+      });
+
+      var items = Object.values(byContact)
+        .map(function(c) { return { contact: c.contact, progress: getCadenceProgress(c.tasks) }; })
+        .filter(function(c) { return c.progress; });
+
+      items.sort(function(a, b) {
+        if (a.progress.isComplete !== b.progress.isComplete) return a.progress.isComplete ? 1 : -1;
+        return (a.progress.current.due_date || '').localeCompare(b.progress.current.due_date || '');
+      });
+
+      if (!items.length) {
+        aside.innerHTML = '<div class="cadence-sidebar-title">Fluxo de Cadência</div><div class="empty-state" style="padding:20px 8px;"><p style="font-size:0.82rem;">Nenhum cliente da agenda está em cadência</p></div>';
+        return;
+      }
+
+      aside.innerHTML = '<div class="cadence-sidebar-title">Fluxo de Cadência</div>' + items.map(function(c) {
+        var p = c.progress;
+        var isAtrasada = !p.isComplete && p.current.status === 'atrasada';
+        return [
+          '<a href="contato.html?id=' + c.contact.id + '" class="cadence-sidebar-item">',
+          '  <div class="cadence-sidebar-name">' + c.contact.name + '</div>',
+          '  <div class="cadence-bar" style="margin-bottom:4px;"><div class="cadence-bar-fill ' + (p.isComplete?'complete':'') + '" style="width:' + p.percent + '%;"></div></div>',
+          '  <div class="cadence-sidebar-stage ' + (isAtrasada?'atrasada':'') + '">' + (p.isComplete ? '✅ Cadência completa' : (isAtrasada ? '⚠️ ' : '') + p.current.title) + '</div>',
+          '</a>'
+        ].join('');
+      }).join('');
     }
 
     function render() {

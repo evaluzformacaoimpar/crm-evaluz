@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Eva Luz CRM — Fluxo de Cadência</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <script src="https://unpkg.com/@supabase/supabase-js@2.39.3/dist/umd/supabase.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/nav.js"></script>
+</head>
+<body>
+  <div class="app-layout">
+    <aside id="sidebar" class="sidebar"></aside>
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+    <main class="main-content">
+      <header class="page-header">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <button class="hamburger" id="hamburger">☰</button>
+          <h1 class="page-title">Fluxo de <span>Cadência</span></h1>
+        </div>
+        <div class="search-bar">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="busca-cadencia" class="form-control" placeholder="Buscar contato...">
+        </div>
+      </header>
+      <div class="page-body">
+
+        <div class="card" style="margin-bottom:16px;background:var(--primary);color:white;border:none;">
+          <p style="font-size:0.9rem;line-height:1.6;">
+            O Fluxo de Cadência IMPAR são 6 toques planejados para nenhum contato esfriar.
+            Seguir a cadência inteira, sem pular etapas, é o que separa o vendedor aguerrido do vendedor que desiste no primeiro não.
+          </p>
+        </div>
+
+        <div class="cadence-method-grid">
+          <div class="cadence-method-step"><span class="cadence-method-day">Dia 1</span><strong>Abordagem inicial</strong><p>Primeiro contato depois da captação. Rapport genuíno, sem script engessado.</p></div>
+          <div class="cadence-method-step"><span class="cadence-method-day">Dia 3</span><strong>Envio de valor</strong><p>Conteúdo ou informação que ajuda o cliente antes de qualquer venda.</p></div>
+          <div class="cadence-method-step"><span class="cadence-method-day">Dia 6</span><strong>Retomada gentil</strong><p>Volta ao contato sem cobrança, perguntando se ficou alguma dúvida.</p></div>
+          <div class="cadence-method-step"><span class="cadence-method-day">Dia 10</span><strong>Urgência real</strong><p>Mostre um dado concreto do custo de adiar. Nunca invente escassez.</p></div>
+          <div class="cadence-method-step"><span class="cadence-method-day">Dia 15</span><strong>Último contato</strong><p>Reforce a solução e dê abertura total para o não.</p></div>
+          <div class="cadence-method-step"><span class="cadence-method-day">Dia 30</span><strong>Reativação</strong><p>Reabra a conversa mais adiante, mantendo o relacionamento de longo prazo.</p></div>
+        </div>
+
+        <div style="display:flex;justify-content:space-between;align-items:center;margin:28px 0 14px;">
+          <h2 style="font-size:1rem;color:var(--primary);font-weight:700;">Contatos em Cadência</h2>
+          <span id="resumo-cadencia" style="font-size:0.82rem;color:var(--text-muted);"></span>
+        </div>
+        <div id="lista-cadencia"></div>
+
+      </div>
+    </main>
+  </div>
+  <div id="toast-container"></div>
+
+  <script>
+    let contatosCadencia = [];
+
+    async function init() {
+      await checkSession();
+      await injectNav('fluxo-cadencia');
+      await loadCadencias();
+      document.getElementById('busca-cadencia').addEventListener('input', function() {
+        render(this.value.toLowerCase());
+      });
+    }
+
+    async function loadCadencias() {
+      const el = document.getElementById('lista-cadencia');
+      el.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-muted);">Carregando...</div>';
+
+      const { data, error } = await supabase
+        .from('tasks')
+        .select('id, contact_id, title, status, due_date, contacts(id, name, phone, funnel_stage)')
+        .ilike('title', 'Dia %')
+        .order('due_date', { ascending: true });
+
+      if (error) {
+        el.innerHTML = '<div class="empty-state"><p>Erro ao carregar. Recarregue a página.</p></div>';
+        return;
+      }
+
+      const byContact = {};
+      (data || []).forEach(t => {
+        if (!t.contacts) return;
+        if (!byContact[t.contact_id]) byContact[t.contact_id] = { contact: t.contacts, tasks: [] };
+        byContact[t.contact_id].tasks.push(t);
+      });
+
+      contatosCadencia = Object.values(byContact).map(c => ({
+        contact:  c.contact,
+        progress: getCadenceProgress(c.tasks),
+      })).filter(c => c.progress);
+
+      contatosCadencia.sort((a, b) => {
+        if (a.progress.isComplete !== b.progress.isComplete) return a.progress.isComplete ? 1 : -1;
+        return (a.progress.current.due_date || '').localeCompare(b.progress.current.due_date || '');
+      });
+
+      render('');
+    }
+
+    function render(filtro) {
+      const el = document.getElementById('lista-cadencia');
+      const list = filtro
+        ? contatosCadencia.filter(c => c.contact.name.toLowerCase().includes(filtro))
+        : contatosCadencia;
+
+      const completos = contatosCadencia.filter(c => c.progress.isComplete).length;
+      document.getElementById('resumo-cadencia').textContent = contatosCadencia.length
+        ? `${completos} de ${contatosCadencia.length} completaram os 6 toques`
+        : '';
+
+      if (!list.length) {
+        el.innerHTML = '<div class="empty-state"><div class="empty-icon">📋</div><p>Nenhum contato em cadência no momento</p></div>';
+        return;
+      }
+
+      el.innerHTML = list.map(c => {
+        const p = c.progress;
+        const isAtrasada = !p.isComplete && p.current.status === 'atrasada';
+        return `
+        <a href="contato.html?id=${c.contact.id}" class="cadence-card" style="display:block;text-decoration:none;color:inherit;">
+          <div class="cadence-card-header">
+            <span style="font-weight:700;color:var(--primary);">${c.contact.name}</span>
+            <span class="badge ${p.isComplete ? 'badge-success' : isAtrasada ? 'badge-danger' : 'badge-accent'}">
+              ${p.isComplete ? 'Cadência completa' : (isAtrasada ? 'Atrasada · ' : 'Em andamento · ') + p.current.title}
+            </span>
+          </div>
+          <div class="cadence-bar"><div class="cadence-bar-fill ${p.isComplete?'complete':''}" style="width:${p.percent}%;"></div></div>
+          <div style="font-size:0.78rem;color:var(--text-muted);">${p.done} de ${p.total} contatos feitos</div>
+        </a>`;
+      }).join('');
+    }
+
+    init();
+  </script>
+</body>
+</html>

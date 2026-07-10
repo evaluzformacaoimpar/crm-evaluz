@@ -395,6 +395,7 @@
                        : contactTasks;
 
       panel.innerHTML = `
+        ${cadenceCard()}
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
           <div style="display:flex;gap:4px;">
             <button class="btn btn-sm ${taskFilterStatus==='abertas'?'btn-primary':'btn-outline'}" onclick="setTaskFilter('abertas')">
@@ -437,6 +438,32 @@
     function setTaskFilter(f) {
       taskFilterStatus = f;
       renderTarefas();
+    }
+
+    function cadenceCard() {
+      const prog = getCadenceProgress(contactTasks);
+      if (!prog) return '';
+
+      const steps = prog.steps.map(t => {
+        const isDone    = t.status === 'concluida';
+        const isCurrent = !isDone && t.id === prog.current.id;
+        return `
+          <div class="cadence-step ${isDone?'done':''} ${isCurrent?'is-current':''}">
+            <div class="cadence-step-check">${isDone?'✓':''}</div>
+            <span class="cadence-step-label">${t.title}</span>
+            <span class="cadence-step-date">${formatDate(t.due_date)}</span>
+          </div>`;
+      }).join('');
+
+      return `
+        <div class="cadence-card">
+          <div class="cadence-card-header">
+            <span class="cadence-card-title">Fluxo de Cadência IMPAR</span>
+            <span class="badge ${prog.isComplete?'badge-success':'badge-accent'}">${prog.done} de ${prog.total} feitos</span>
+          </div>
+          <div class="cadence-bar"><div class="cadence-bar-fill ${prog.isComplete?'complete':''}" style="width:${prog.percent}%;"></div></div>
+          <div class="cadence-steps">${steps}</div>
+        </div>`;
     }
 
     function taskItem(t) {

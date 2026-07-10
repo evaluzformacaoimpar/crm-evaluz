@@ -26,7 +26,7 @@ async function injectNav(activePage) {
     </div>
     <nav class="sidebar-nav">
       <div class="nav-section-label">Principal</div>
-      <a href="painel.html" class="nav-link ${activePage === 'dashboard' ? 'active' : ''}">
+      <a href="dashboard.html" class="nav-link ${activePage === 'dashboard' ? 'active' : ''}">
         <span class="nav-icon">📊</span> Dashboard
       </a>
       <a href="contatos.html" class="nav-link ${activePage === 'contatos' ? 'active' : ''}">
@@ -51,6 +51,9 @@ async function injectNav(activePage) {
       </a>
       <a href="gatilhos.html" class="nav-link ${activePage === 'gatilhos' ? 'active' : ''}">
         <span class="nav-icon">⚡</span> Gatilhos
+      </a>
+      <a href="fluxo-cadencia.html" class="nav-link ${activePage === 'fluxo-cadencia' ? 'active' : ''}">
+        <span class="nav-icon">🔄</span> Fluxo de Cadência
       </a>
 
       ${isAdmin ? `

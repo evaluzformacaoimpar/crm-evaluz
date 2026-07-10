@@ -724,6 +724,144 @@ ul { list-style: none; }
   font-weight: 500;
 }
 
+/* ── Fluxo de Cadência ── */
+.cadence-card {
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  margin-bottom: 20px;
+  background: var(--white);
+}
+.cadence-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.cadence-card-title {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 700;
+  color: var(--accent-dark);
+}
+.cadence-bar {
+  width: 100%;
+  height: 8px;
+  border-radius: 6px;
+  background: rgba(0,31,63,0.08);
+  overflow: hidden;
+  margin-bottom: 14px;
+}
+.cadence-bar-fill {
+  height: 100%;
+  border-radius: 6px;
+  background: var(--accent);
+  transition: width 0.3s ease;
+}
+.cadence-bar-fill.complete { background: var(--success); }
+.cadence-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.cadence-step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.84rem;
+  padding: 6px 8px;
+  border-radius: 8px;
+}
+.cadence-step.is-current { background: rgba(184,115,51,0.08); }
+.cadence-step-check {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1.5px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  color: transparent;
+}
+.cadence-step.done .cadence-step-check {
+  background: var(--success);
+  border-color: var(--success);
+  color: white;
+}
+.cadence-step.is-current .cadence-step-check { border-color: var(--accent); }
+.cadence-step-label { color: var(--text-dark); }
+.cadence-step.done .cadence-step-label { color: var(--text-muted); text-decoration: line-through; }
+.cadence-step-date { margin-left: auto; font-size: 0.75rem; color: var(--text-muted); flex-shrink: 0; }
+
+.cadence-method-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+.cadence-method-step {
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  background: var(--white);
+}
+.cadence-method-day {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--accent-dark);
+  background: rgba(184,115,51,0.1);
+  border-radius: 6px;
+  padding: 2px 8px;
+  margin-bottom: 8px;
+}
+.cadence-method-step strong { display: block; font-size: 0.87rem; color: var(--primary); margin-bottom: 4px; }
+.cadence-method-step p { font-size: 0.8rem; color: var(--text-muted); line-height: 1.5; margin: 0; }
+
+/* ── Agenda: layout com painel lateral de cadência ── */
+.agenda-layout {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  gap: 24px;
+  align-items: start;
+}
+.cadence-sidebar {
+  position: sticky;
+  top: 16px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--white);
+  padding: 14px;
+}
+.cadence-sidebar-title {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 700;
+  color: var(--accent-dark);
+  margin-bottom: 10px;
+}
+.cadence-sidebar-item {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+}
+.cadence-sidebar-item:first-of-type { border-top: none; }
+.cadence-sidebar-name { font-size: 0.84rem; font-weight: 700; color: var(--primary); margin-bottom: 6px; }
+.cadence-sidebar-stage { font-size: 0.75rem; color: var(--text-muted); }
+.cadence-sidebar-stage.atrasada { color: var(--danger); font-weight: 600; }
+
+@media (max-width: 900px) {
+  .agenda-layout { grid-template-columns: 1fr; }
+  .cadence-sidebar { position: static; }
+}
+
 /* ── Barra de Busca / Filtros ── */
 .search-bar {
   position: relative;
