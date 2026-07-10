@@ -254,6 +254,50 @@ function generateCadenceDates(startDate) {
   });
 }
 
+const CADENCE_STEP_LABELS = {
+  1:  'Abordagem inicial',
+  3:  'Envio de valor',
+  6:  'Retomada gentil',
+  10: 'Urgência real',
+  15: 'Último contato',
+  30: 'Reativação',
+};
+
+// As tarefas de cadência são identificadas pelo título gerado em
+// generateCadenceDates(), ex: "Dia 6: Retomada gentil". Não há coluna própria
+// no banco marcando "isso é uma cadência" — o título é o único identificador.
+function getCadenceDay(title) {
+  const m = /^Dia (\d+):/.exec(title || '');
+  return m ? parseInt(m[1], 10) : null;
+}
+
+function isCadenceTask(task) {
+  return getCadenceDay(task.title) !== null;
+}
+
+// Recebe todas as tarefas de um contato e retorna o progresso da cadência
+// IMPAR (quantas das 6 etapas já foram concluídas e qual é a etapa atual).
+// Retorna null se o contato não tiver nenhuma cadência iniciada.
+function getCadenceProgress(tasks) {
+  const steps = (tasks || [])
+    .filter(isCadenceTask)
+    .sort((a, b) => getCadenceDay(a.title) - getCadenceDay(b.title));
+  if (!steps.length) return null;
+
+  const done    = steps.filter(t => t.status === 'concluida').length;
+  const total   = steps.length;
+  const current = steps.find(t => t.status !== 'concluida') || steps[steps.length - 1];
+
+  return {
+    steps,
+    done,
+    total,
+    current,
+    percent:    Math.round((done / total) * 100),
+    isComplete: done === total,
+  };
+}
+
 // ── EmailJS Reminder ──────────────────────────────────────────
 
 async function sendEmailReminder(toEmail, toName, contactName, taskTitle, dueDate) {
