@@ -26,7 +26,7 @@ async function injectNav(activePage) {
     </div>
     <nav class="sidebar-nav">
       <div class="nav-section-label">Principal</div>
-      <a href="dashboard.html" class="nav-link ${activePage === 'dashboard' ? 'active' : ''}">
+      <a href="painel.html" class="nav-link ${activePage === 'dashboard' ? 'active' : ''}">
         <span class="nav-icon">📊</span> Dashboard
       </a>
       <a href="contatos.html" class="nav-link ${activePage === 'contatos' ? 'active' : ''}">
